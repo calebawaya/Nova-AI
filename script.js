@@ -109,7 +109,8 @@ function createWorkspaceFile(){
   if(!activeProjectId)return;
   const name=prompt("File name:", "index.html");
   if(!name||!name.trim())return;
-  const file={id:createSessionId(),name:name.trim().slice(0,80),content:""};
+  const cleanName=name.trim().slice(0,80);
+  const file={id:createSessionId(),name:githubRepo ? cleanName : cleanName,content:"",source:githubRepo?"github":"local",githubPath:githubRepo?cleanName:null,sha:null};
   workspaceFilesState.push(file); persistWorkspace(); selectWorkspaceFile(file.id);
 }
 function saveWorkspaceFile(){
