@@ -128,6 +128,7 @@ def get_history(session_id):
 def delete_history(session_id):
     with sqlite3.connect(DB_NAME) as db:
         db.execute("DELETE FROM messages WHERE session_id = ?", (session_id,))
+        db.execute("DELETE FROM session_memory WHERE session_id = ?", (session_id,))
         db.commit()
 
 
