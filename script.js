@@ -1,6 +1,10 @@
 const chat = document.getElementById("chat");
 const input = document.getElementById("userInput");
 const sendBtn = document.getElementById("sendBtn");
+const newChatBtn = document.getElementById("newChatBtn");
+const clearBtn = document.getElementById("clearBtn");
+const statusText = document.getElementById("statusText");
+const statusDot = document.getElementById("statusDot");
 
 const sessionId =
   localStorage.getItem("novaSessionId") || crypto.randomUUID();
@@ -10,7 +14,10 @@ localStorage.setItem("novaSessionId", sessionId);
 // Change this one value when Nova's Python backend is deployed online.
 const API_URL = "http://127.0.0.1:5000";
 
+function clearWelcome() { document.querySelector(".welcome")?.remove(); }
+
 function addMessage(text, type) {
+  clearWelcome();
   const message = document.createElement("div");
   message.className = `message ${type}`;
 
@@ -96,6 +103,7 @@ async function sendMessage() {
 
   addMessage(text, "user");
   input.value = "";
+  clearWelcome();
   sendBtn.disabled = true;
   showThinking();
 
@@ -138,3 +146,43 @@ input.addEventListener("keydown", (event) => {
 });
 
 input.focus();
+
+
+async function checkConnection() {
+  try {
+    const response = await fetch(`${API_URL}/api/health`);
+    if (!response.ok) throw new Error();
+    const data = await response.json();
+    statusText.textContent = data.ai_enabled ? "AI online" : "Backend online";
+    statusDot.style.color = "#4ade80";
+  } catch {
+    statusText.textContent = "Offline mode";
+    statusDot.style.color = "#facc15";
+  }
+}
+
+function startNewChat() {
+  localStorage.removeItem("novaSessionId");
+  location.reload();
+}
+
+newChatBtn?.addEventListener("click", startNewChat);
+
+clearBtn?.addEventListener("click", () => {
+  chat.innerHTML = `
+    <div class="welcome">
+      <div class="welcome-icon">✦</div>
+      <h1>How can I help you?</h1>
+      <p>Ask Nova about coding, ideas, websites, business, or anything you're curious about.</p>
+    </div>
+  `;
+});
+
+document.querySelectorAll(".suggestion").forEach((button) => {
+  button.addEventListener("click", () => {
+    input.value = button.textContent;
+    sendMessage();
+  });
+});
+
+checkConnection();
