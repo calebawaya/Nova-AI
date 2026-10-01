@@ -113,6 +113,12 @@ function getAIResponse(question) {
   return "Interesting! 🤔 I'm still learning. Ask me about programming, websites, Python, SQL, business, or myself.";
 }
 
+function createConversationTitle(message) {
+  const clean = String(message ?? "").replace(/\s+/g, " ").trim();
+  if (!clean) return "New conversation";
+  return clean.length > 36 ? clean.slice(0, 36).trimEnd() + "…" : clean;
+}
+
 function resetChatScreen() {
   chat.innerHTML = `
     <div class="welcome">
@@ -188,19 +194,30 @@ async function loadHistory() {
 
     const userMessages = data.messages.filter(item => item.role === "user");
 
-    userMessages.forEach((item) => {
-      const button = document.createElement("button");
-      button.className = "history-item";
-      button.textContent = item.message;
-      button.title = item.message;
-      button.addEventListener("click", () => {
-        input.value = item.message;
+    if (userMessages.length) {
+      const title = data.title || createConversationTitle(userMessages[0].message);
+
+      const titleButton = document.createElement("button");
+      titleButton.className = "history-item history-title";
+      titleButton.textContent = title;
+      titleButton.title = title;
+      titleButton.addEventListener("click", () => {
         input.focus();
       });
-      historyList.appendChild(button);
-    });
+      historyList.appendChild(titleButton);
 
-    if (!userMessages.length) {
+      userMessages.slice().reverse().forEach((item) => {
+        const button = document.createElement("button");
+        button.className = "history-item history-message";
+        button.textContent = item.message;
+        button.title = item.message;
+        button.addEventListener("click", () => {
+          input.value = item.message;
+          input.focus();
+        });
+        historyList.appendChild(button);
+      });
+    } else {
       historyList.innerHTML = '<div class="history-item">No conversations yet</div>';
     }
   } catch {
