@@ -186,7 +186,19 @@ def history(session_id):
     if not valid_session_id(session_id):
         return jsonify({"error": "Invalid session ID."}), 400
 
-    return jsonify({"messages": get_history(session_id)})
+    messages = get_history(session_id)
+    first_user_message = next(
+        (item["message"] for item in messages if item["role"] == "user"),
+        ""
+    )
+    title = first_user_message.strip()
+    if len(title) > 36:
+        title = title[:36].rstrip() + "…"
+
+    return jsonify({
+        "title": title or "New conversation",
+        "messages": messages
+    })
 
 
 @app.delete("/api/history/<session_id>")
