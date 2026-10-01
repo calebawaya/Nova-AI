@@ -30,6 +30,120 @@ let activeProjectId = localStorage.getItem("novaActiveProjectId") || null;
 
 const historySearch = document.getElementById("historySearch");
 
+const workspaceView = document.getElementById("workspaceView");
+const workspaceBack = document.getElementById("workspaceBack");
+const workspaceClose = document.getElementById("workspaceClose");
+const workspaceName = document.getElementById("workspaceName");
+const workspaceDescription = document.getElementById("workspaceDescription");
+const workspaceSave = document.getElementById("workspaceSave");
+const progressBar = document.getElementById("progressBar");
+const progressLabel = document.getElementById("progressLabel");
+const projectStatus = document.getElementById("projectStatus");
+const workspaceFiles = document.getElementById("workspaceFiles");
+const codeEditor = document.getElementById("codeEditor");
+const currentFileName = document.getElementById("currentFileName");
+const saveFileBtn = document.getElementById("saveFileBtn");
+const newFileBtn = document.getElementById("newFileBtn");
+const workspaceChat = document.getElementById("workspaceChat");
+const workspaceInput = document.getElementById("workspaceInput");
+const workspaceSend = document.getElementById("workspaceSend");
+let workspaceFileId = null;
+let workspaceFilesState = [];
+
+function projectStorageKey(id){ return "novaProjectWorkspace_" + id; }
+function loadWorkspaceState(project){
+  try {
+    const saved=JSON.parse(localStorage.getItem(projectStorageKey(project.id))||"null");
+    return saved && typeof saved==="object" ? saved : {progress:0,status:"Planning",files:[]};
+  } catch { return {progress:0,status:"Planning",files:[]}; }
+}
+function saveWorkspaceState(projectId,state){ localStorage.setItem(projectStorageKey(projectId),JSON.stringify(state)); }
+function renderWorkspaceFiles(){
+  workspaceFiles.innerHTML="";
+  if(!workspaceFilesState.length){ workspaceFiles.innerHTML='<div class="file-empty">No files yet. Create one.</div>'; return; }
+  workspaceFilesState.forEach(file=>{
+    const b=document.createElement("button");
+    b.type="button"; b.className="file-item"+(file.id===workspaceFileId?" active":"");
+    b.textContent=file.name;
+    b.addEventListener("click",()=>selectWorkspaceFile(file.id));
+    workspaceFiles.appendChild(b);
+  });
+}
+function selectWorkspaceFile(id){
+  const file=workspaceFilesState.find(f=>f.id===id);
+  if(!file)return;
+  workspaceFileId=id; currentFileName.textContent=file.name; codeEditor.value=file.content||"";
+  renderWorkspaceFiles();
+}
+function updateWorkspaceProgress(value){
+  const v=Math.max(0,Math.min(100,Number(value)||0));
+  progressBar.style.width=v+"%"; progressLabel.textContent=v+"%";
+}
+function addWorkspaceMessage(text,type){
+  const el=document.createElement("div"); el.className="workspace-msg "+type; el.textContent=text; workspaceChat.appendChild(el); workspaceChat.scrollTop=workspaceChat.scrollHeight;
+}
+function renderWorkspaceChat(){
+  workspaceChat.innerHTML="";
+  addWorkspaceMessage("This chat is connected to the active project. Nova will receive its project context.","ai");
+}
+function openProjectWorkspace(project){
+  const state=loadWorkspaceState(project);
+  activeProjectId=project.id; localStorage.setItem("novaActiveProjectId",project.id);
+  workspaceName.textContent=project.name;
+  workspaceDescription.textContent=project.description||"No description yet.";
+  workspaceView.classList.add("open"); workspaceView.setAttribute("aria-hidden","false");
+  workspaceFilesState=Array.isArray(state.files)?state.files:[];
+  updateWorkspaceProgress(state.progress); projectStatus.value=state.status||"Planning";
+  workspaceFileId=workspaceFilesState[0]?.id||null; renderWorkspaceFiles();
+  if(workspaceFileId) selectWorkspaceFile(workspaceFileId); else {currentFileName.textContent="Select a file";codeEditor.value="";}
+  renderWorkspaceChat();
+}
+function closeProjectWorkspace(){
+  workspaceView.classList.remove("open"); workspaceView.setAttribute("aria-hidden","true");
+}
+function persistWorkspace(){
+  if(!activeProjectId)return;
+  saveWorkspaceState(activeProjectId,{progress:Number(progressLabel.textContent.replace("%","")),status:projectStatus.value,files:workspaceFilesState});
+}
+function createWorkspaceFile(){
+  if(!activeProjectId)return;
+  const name=prompt("File name:", "index.html");
+  if(!name||!name.trim())return;
+  const file={id:createSessionId(),name:name.trim().slice(0,80),content:""};
+  workspaceFilesState.push(file); persistWorkspace(); selectWorkspaceFile(file.id);
+}
+function saveWorkspaceFile(){
+  const file=workspaceFilesState.find(f=>f.id===workspaceFileId);
+  if(!file)return;
+  file.content=codeEditor.value; persistWorkspace();
+  saveFileBtn.textContent="Saved"; setTimeout(()=>saveFileBtn.textContent="Save file",1000);
+}
+async function sendWorkspaceChat(){
+  const message=workspaceInput.value.trim();
+  if(!message||!activeProjectId||isStreaming)return;
+  workspaceInput.value="";
+  addWorkspaceMessage(message,"user");
+  try{
+    const response=await fetch(API_URL+"/api/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
+      message,session_id:sessionId,project_id:activeProjectId,response_style:localStorage.getItem("novaResponseStyle")||"balanced",memory_enabled:localStorage.getItem("novaMemory")!=="false"
+    })});
+    const data=await response.json();
+    if(!response.ok)throw new Error(data.error||"Request failed");
+    addWorkspaceMessage(data.reply||"Nova did not return a response.","ai");
+  }catch(e){addWorkspaceMessage("I couldn't reach Nova right now. Check that the Python backend is running.","ai");}
+}
+function runWorkspaceTool(kind){
+  const project=getActiveProject(); if(!project)return;
+  const prompts={
+    code:"Generate the next code needed for my project.",
+    fix:"Review my project and help me find a likely bug.",
+    plan:"Create a step-by-step build plan for this project.",
+    review:"Review my current project structure and suggest useful improvements."
+  };
+  workspaceInput.value=prompts[kind]||prompts.plan; sendWorkspaceChat();
+}
+
+
 
 
 function getProjects() {
@@ -93,9 +207,7 @@ function renderProjects() {
       projectsPanel.classList.remove("open");
       projectsBtn.classList.remove("active");
       chatBtn?.classList.add("active");
-      input.value = "Continue working on " + project.name;
-      input.focus();
-      await restoreChat();
+      openProjectWorkspace(project);
     });
     const del = document.createElement("button"); del.className = "project-delete"; del.textContent = "×"; del.title = "Delete project";
     del.addEventListener("click", async () => {
@@ -938,6 +1050,20 @@ toolRequest?.addEventListener("keydown", (event) => {
 document.querySelectorAll(".tool-card").forEach((button) => {
   button.addEventListener("click", () => openTool(button.dataset.tool));
 });
+
+workspaceBack?.addEventListener("click",closeProjectWorkspace);
+workspaceClose?.addEventListener("click",closeProjectWorkspace);
+workspaceSave?.addEventListener("click",persistWorkspace);
+saveFileBtn?.addEventListener("click",saveWorkspaceFile);
+newFileBtn?.addEventListener("click",createWorkspaceFile);
+projectStatus?.addEventListener("change",persistWorkspace);
+document.querySelectorAll(".progress-controls button").forEach(button=>{
+  button.addEventListener("click",()=>{updateWorkspaceProgress(button.dataset.progress);persistWorkspace();});
+});
+workspaceSend?.addEventListener("click",sendWorkspaceChat);
+workspaceInput?.addEventListener("keydown",e=>{if(e.key==="Enter")sendWorkspaceChat();});
+document.querySelectorAll("[data-worktool]").forEach(button=>button.addEventListener("click",()=>runWorkspaceTool(button.dataset.worktool)));
+
 
 loadSettings();
 renderProjects();
