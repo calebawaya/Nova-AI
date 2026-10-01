@@ -36,7 +36,70 @@ def init_db():
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
+        db.execute("""
+            CREATE TABLE IF NOT EXISTS session_memory (
+                session_id TEXT PRIMARY KEY,
+                summary TEXT NOT NULL DEFAULT '',
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        db.execute("CREATE INDEX IF NOT EXISTS idx_messages_session_id ON messages(session_id)")
         db.commit()
+
+
+def get_session_memory(session_id):
+    with sqlite3.connect(DB_NAME) as db:
+        row = db.execute(
+            "SELECT summary FROM session_memory WHERE session_id = ?",
+            (session_id,)
+        ).fetchone()
+    return row[0] if row else ""
+
+
+def save_session_memory(session_id, summary):
+    with sqlite3.connect(DB_NAME) as db:
+        db.execute(
+            """
+            INSERT INTO session_memory (session_id, summary, updated_at)
+            VALUES (?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(session_id) DO UPDATE SET
+                summary = excluded.summary,
+                updated_at = CURRENT_TIMESTAMP
+            """,
+            (session_id, summary)
+        )
+        db.commit()
+
+
+def update_session_memory(session_id):
+    if not client:
+        return
+
+    history = get_history(session_id)
+    if len(history) < 4:
+        return
+
+    recent = history[-12:]
+    previous = get_session_memory(session_id)
+
+    try:
+        response = client.responses.create(
+            model=OPENAI_MODEL,
+            instructions=(
+                "Create concise conversation memory for Nova AI. Keep only useful "
+                "project context, goals, preferences, and decisions. Do not include "
+                "sensitive personal information. Return plain text under 700 characters."
+            ),
+            input=[{
+                "role": "user",
+                "content": f"Previous memory:\n{previous or '(none)'}\n\nRecent conversation:\n{recent}"
+            }]
+        )
+        summary = response.output_text.strip()[:700]
+        if summary:
+            save_session_memory(session_id, summary)
+    except Exception:
+        app.logger.exception("Session memory update failed")
 
 
 def save_message(session_id, role, message):
@@ -100,17 +163,27 @@ def ai_response(message, session_id):
         return fallback_response(message)
 
     history = get_history(session_id)
-    input_items = [
+    memory = get_session_memory(session_id)
+
+    input_items = []
+    if memory:
+        input_items.append({
+            "role": "developer",
+            "content": f"Session memory:\n{memory}"
+        })
+
+    input_items.extend(
         {"role": item["role"], "content": item["message"]}
         for item in history[-20:]
-    ]
+    )
 
     response = client.responses.create(
         model=OPENAI_MODEL,
         instructions=(
             "You are Nova AI, a friendly and helpful assistant. "
             "Give clear, age-appropriate answers. "
-            "When explaining programming, use beginner-friendly steps and examples."
+            "When explaining programming, use beginner-friendly steps and examples. "
+            "Use session memory when relevant, but never invent facts."
         ),
         input=input_items
     )
@@ -140,7 +213,8 @@ def health():
     return jsonify({
         "status": "online",
         "name": "Nova AI",
-        "ai_enabled": client is not None
+        "ai_enabled": client is not None,
+        "memory_enabled": client is not None
     })
 
 
@@ -173,6 +247,7 @@ def chat():
         reply = fallback_response(message)
 
     save_message(session_id, "assistant", reply)
+    update_session_memory(session_id)
 
     return jsonify({
         "reply": reply,
