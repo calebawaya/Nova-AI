@@ -15,10 +15,32 @@ function createSessionId() {
 }
 
 let sessionId = localStorage.getItem("novaSessionId");
+
+function getSavedSessions() {
+  try {
+    const sessions = JSON.parse(localStorage.getItem("novaSessions") || "[]");
+    return Array.isArray(sessions) ? sessions : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveSessionList(sessions) {
+  localStorage.setItem("novaSessions", JSON.stringify(sessions));
+}
+
+function rememberSession(id, title = "New conversation") {
+  const sessions = getSavedSessions().filter(item => item.id !== id);
+  sessions.unshift({ id, title });
+  saveSessionList(sessions.slice(0, 20));
+}
+
 if (!sessionId) {
   sessionId = createSessionId();
   localStorage.setItem("novaSessionId", sessionId);
 }
+
+rememberSession(sessionId);
 
 // Change this one value when Nova's Python backend is deployed online.
 const API_URL = "http://127.0.0.1:5000";
@@ -148,6 +170,7 @@ async function sendMessage() {
     if (!response.ok) throw new Error("Backend error");
 
     const data = await response.json();
+    rememberSession(sessionId, data.title || createConversationTitle(text));
     removeThinking();
     addMessage(data.reply, "ai");
     await loadHistory();
@@ -185,44 +208,64 @@ async function checkConnection() {
 }
 
 async function loadHistory() {
-  try {
-    const response = await fetch(`${API_URL}/api/history/${encodeURIComponent(sessionId)}`);
-    if (!response.ok) throw new Error("History unavailable");
+  historyList.innerHTML = '<div class="history-item">Loading conversations...</div>';
 
-    const data = await response.json();
-    historyList.innerHTML = "";
-
-    const userMessages = data.messages.filter(item => item.role === "user");
-
-    if (userMessages.length) {
-      const title = data.title || createConversationTitle(userMessages[0].message);
-
-      const titleButton = document.createElement("button");
-      titleButton.className = "history-item history-title";
-      titleButton.textContent = title;
-      titleButton.title = title;
-      titleButton.addEventListener("click", () => {
-        input.focus();
-      });
-      historyList.appendChild(titleButton);
-
-      userMessages.slice().reverse().forEach((item) => {
-        const button = document.createElement("button");
-        button.className = "history-item history-message";
-        button.textContent = item.message;
-        button.title = item.message;
-        button.addEventListener("click", () => {
-          input.value = item.message;
-          input.focus();
-        });
-        historyList.appendChild(button);
-      });
-    } else {
-      historyList.innerHTML = '<div class="history-item">No conversations yet</div>';
-    }
-  } catch {
-    historyList.innerHTML = '<div class="history-item">History unavailable</div>';
+  const sessions = getSavedSessions();
+  if (!sessions.length) {
+    historyList.innerHTML = '<div class="history-item">No conversations yet</div>';
+    return;
   }
+
+  const conversations = [];
+
+  for (const session of sessions) {
+    try {
+      const response = await fetch(
+        `${API_URL}/api/history/${encodeURIComponent(session.id)}`
+      );
+      if (!response.ok) continue;
+
+      const data = await response.json();
+      if (!data.messages?.length) continue;
+
+      const title = data.title || session.title || "New conversation";
+      conversations.push({ ...session, title });
+    } catch {
+      // Keep checking the remaining saved conversations.
+    }
+  }
+
+  if (!conversations.length) {
+    historyList.innerHTML = '<div class="history-item">No conversations yet</div>';
+    return;
+  }
+
+  saveSessionList(conversations);
+
+  historyList.innerHTML = "";
+
+  conversations.forEach((conversation) => {
+    const button = document.createElement("button");
+    button.className = "history-item" +
+      (conversation.id === sessionId ? " current-chat" : "");
+    button.textContent = conversation.title;
+    button.title = conversation.title;
+
+    button.addEventListener("click", async () => {
+      await switchConversation(conversation.id);
+    });
+
+    historyList.appendChild(button);
+  });
+}
+
+async function switchConversation(id) {
+  sessionId = id;
+  localStorage.setItem("novaSessionId", sessionId);
+  resetChatScreen();
+  await restoreChat();
+  input.focus();
+  await loadHistory();
 }
 
 async function restoreChat() {
@@ -269,9 +312,12 @@ chatBtn?.addEventListener("click", () => {
 });
 
 async function startNewChat() {
-  await deleteCurrentSession();
-  localStorage.removeItem("novaSessionId");
-  location.reload();
+  sessionId = createSessionId();
+  localStorage.setItem("novaSessionId", sessionId);
+  rememberSession(sessionId);
+  resetChatScreen();
+  await loadHistory();
+  input.focus();
 }
 
 newChatBtn?.addEventListener("click", startNewChat);
@@ -279,6 +325,10 @@ newChatBtn?.addEventListener("click", startNewChat);
 clearBtn?.addEventListener("click", async () => {
   await deleteCurrentSession();
   resetChatScreen();
+
+  const sessions = getSavedSessions().filter(item => item.id !== sessionId);
+  saveSessionList(sessions);
+
   await loadHistory();
   input.focus();
 });
