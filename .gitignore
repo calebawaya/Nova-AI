@@ -1,0 +1,6 @@
+.env
+.env.*
+!.env.example
+nova.db
+__pycache__/
+*.pyc
