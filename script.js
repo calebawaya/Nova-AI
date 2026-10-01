@@ -8,6 +8,7 @@ const statusDot = document.getElementById("statusDot");
 const historyBtn = document.getElementById("historyBtn");
 const chatBtn = document.getElementById("chatBtn");
 const historyList = document.getElementById("historyList");
+const historySearch = document.getElementById("historySearch");
 
 function createSessionId() {
   if (window.crypto?.randomUUID) return crypto.randomUUID();
@@ -207,7 +208,7 @@ async function checkConnection() {
   }
 }
 
-async function loadHistory() {
+async function loadHistory(filterText = "") {
   historyList.innerHTML = '<div class="history-item">Loading conversations...</div>';
 
   const sessions = getSavedSessions();
@@ -242,20 +243,40 @@ async function loadHistory() {
 
   saveSessionList(conversations);
 
+  const filter = String(filterText).trim().toLowerCase();
+  const filtered = conversations.filter(conversation => conversation.title.toLowerCase().includes(filter));
+  if (!filtered.length) {
+    historyList.innerHTML = '<div class="history-empty">No matching conversations</div>';
+    return;
+  }
+
   historyList.innerHTML = "";
 
-  conversations.forEach((conversation) => {
+  filtered.forEach((conversation) => {
+    const row = document.createElement("div");
+    row.className = "history-row";
+
     const button = document.createElement("button");
-    button.className = "history-item" +
-      (conversation.id === sessionId ? " current-chat" : "");
+    button.className = "history-item" + (conversation.id === sessionId ? " current-chat" : "");
     button.textContent = conversation.title;
     button.title = conversation.title;
-
     button.addEventListener("click", async () => {
       await switchConversation(conversation.id);
     });
 
-    historyList.appendChild(button);
+    const deleteButton = document.createElement("button");
+    deleteButton.className = "history-delete";
+    deleteButton.type = "button";
+    deleteButton.textContent = "×";
+    deleteButton.title = "Delete conversation";
+    deleteButton.addEventListener("click", async (event) => {
+      event.stopPropagation();
+      await deleteSession(conversation.id);
+    });
+
+    row.appendChild(button);
+    row.appendChild(deleteButton);
+    historyList.appendChild(row);
   });
 }
 
@@ -288,6 +309,18 @@ async function restoreChat() {
   }
 }
 
+async function deleteSession(id) {
+  try {
+    const response = await fetch(API_URL + "/api/history/" + encodeURIComponent(id), { method: "DELETE" });
+    if (!response.ok) throw new Error("Delete failed");
+  } catch {
+    return;
+  }
+  saveSessionList(getSavedSessions().filter(item => item.id !== id));
+  if (id === sessionId) resetChatScreen();
+  await loadHistory(historySearch?.value || "");
+}
+
 async function deleteCurrentSession() {
   try {
     await fetch(`${API_URL}/api/history/${encodeURIComponent(sessionId)}`, {
@@ -301,7 +334,7 @@ async function deleteCurrentSession() {
 historyBtn?.addEventListener("click", () => {
   historyList.classList.toggle("visible");
   historyBtn.classList.toggle("active");
-  if (historyList.classList.contains("visible")) loadHistory();
+  if (historyList.classList.contains("visible")) loadHistory(historySearch?.value || "");
 });
 
 chatBtn?.addEventListener("click", () => {
@@ -319,6 +352,8 @@ async function startNewChat() {
   await loadHistory();
   input.focus();
 }
+
+historySearch?.addEventListener("input", () => loadHistory(historySearch.value));
 
 newChatBtn?.addEventListener("click", startNewChat);
 
