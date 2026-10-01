@@ -3,30 +3,61 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Nova AI — a personal AI assistant.">
   <title>Nova AI</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div class="app">
-    <header>
-      <div class="logo"><span>✦</span> Nova AI</div>
-      <div class="status">● Online</div>
-    </header>
+    <aside class="sidebar">
+      <div class="brand"><span>✦</span> Nova AI</div>
+      <button id="newChatBtn" class="new-chat">＋ New chat</button>
 
-    <main id="chat">
-      <div class="message ai">
-        <div class="avatar">✦</div>
-        <div class="bubble">
-          Hello! I'm <strong>Nova AI</strong> 🤖<br>
-          Ask me anything!
+      <div class="side-section">
+        <p class="side-title">Workspace</p>
+        <button class="side-item active">💬 Chat</button>
+        <button class="side-item" id="historyBtn">🕘 History</button>
+      </div>
+
+      <div class="sidebar-bottom">
+        <div class="ai-card">
+          <span>✦</span>
+          <div>
+            <strong>Nova AI</strong>
+            <small>Learning every day</small>
+          </div>
         </div>
       </div>
-    </main>
+    </aside>
 
-    <div class="input-area">
-      <input id="userInput" type="text" placeholder="Ask Nova something..." autocomplete="off">
-      <button id="sendBtn" aria-label="Send message">➤</button>
-    </div>
+    <section class="chat-panel">
+      <header>
+        <div>
+          <div class="top-title">Nova AI</div>
+          <div class="subtitle"><span id="statusDot">●</span> <span id="statusText">Checking connection...</span></div>
+        </div>
+        <button id="clearBtn" class="clear-btn" title="Clear chat">⌫</button>
+      </header>
+
+      <main id="chat">
+        <div class="welcome">
+          <div class="welcome-icon">✦</div>
+          <h1>How can I help you?</h1>
+          <p>Ask Nova about coding, ideas, websites, business, or anything you're curious about.</p>
+          <div class="suggestions">
+            <button class="suggestion">Explain HTML to me</button>
+            <button class="suggestion">Give me a website idea</button>
+            <button class="suggestion">Teach me Python</button>
+          </div>
+        </div>
+      </main>
+
+      <div class="input-area">
+        <input id="userInput" type="text" placeholder="Message Nova AI..." autocomplete="off">
+        <button id="sendBtn" aria-label="Send message">➤</button>
+      </div>
+      <p class="disclaimer">Nova AI can make mistakes. Check important information.</p>
+    </section>
   </div>
 
   <script src="script.js"></script>
