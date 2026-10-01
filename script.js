@@ -5,6 +5,9 @@ const newChatBtn = document.getElementById("newChatBtn");
 const clearBtn = document.getElementById("clearBtn");
 const statusText = document.getElementById("statusText");
 const statusDot = document.getElementById("statusDot");
+const historyBtn = document.getElementById("historyBtn");
+const chatBtn = document.getElementById("chatBtn");
+const historyList = document.getElementById("historyList");
 
 const sessionId =
   localStorage.getItem("novaSessionId") || crypto.randomUUID();
@@ -123,6 +126,7 @@ async function sendMessage() {
 
     removeThinking();
     addMessage(data.reply, "ai");
+    loadHistory();
   } catch (error) {
     removeThinking();
 
@@ -160,6 +164,47 @@ async function checkConnection() {
     statusDot.style.color = "#facc15";
   }
 }
+
+async function loadHistory() {
+  try {
+    const response = await fetch(`${API_URL}/api/history/${sessionId}`);
+    if (!response.ok) throw new Error("History unavailable");
+    const data = await response.json();
+    historyList.innerHTML = "";
+
+    const userMessages = data.messages.filter(item => item.role === "user");
+    userMessages.forEach((item) => {
+      const button = document.createElement("button");
+      button.className = "history-item";
+      button.textContent = item.message;
+      button.title = item.message;
+      button.addEventListener("click", () => {
+        input.value = item.message;
+        input.focus();
+      });
+      historyList.appendChild(button);
+    });
+
+    if (!userMessages.length) {
+      historyList.innerHTML = '<div class="history-item">No conversations yet</div>';
+    }
+  } catch {
+    historyList.innerHTML = '<div class="history-item">History unavailable</div>';
+  }
+}
+
+historyBtn?.addEventListener("click", () => {
+  historyList.classList.toggle("visible");
+  historyBtn.classList.toggle("active");
+  if (historyList.classList.contains("visible")) loadHistory();
+});
+
+chatBtn?.addEventListener("click", () => {
+  historyList.classList.remove("visible");
+  historyBtn.classList.remove("active");
+  chatBtn.classList.add("active");
+  input.focus();
+});
 
 function startNewChat() {
   localStorage.removeItem("novaSessionId");
