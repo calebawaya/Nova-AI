@@ -113,6 +113,68 @@
       </div>
     </div>
 
+    <div id="workspaceView" class="workspace-view" aria-hidden="true">
+      <div class="workspace-header">
+        <button id="workspaceBack" class="workspace-back" type="button">← Chat</button>
+        <div class="workspace-title-wrap">
+          <div class="workspace-kicker">PROJECT WORKSPACE</div>
+          <h1 id="workspaceName">Project</h1>
+          <p id="workspaceDescription">Project description</p>
+        </div>
+        <div class="workspace-actions">
+          <button id="workspaceSave" type="button">Save</button>
+          <button id="workspaceClose" type="button">×</button>
+        </div>
+      </div>
+
+      <div class="workspace-grid">
+        <section class="workspace-card overview-card">
+          <div class="card-heading"><strong>Progress</strong><span id="progressLabel">0%</span></div>
+          <div class="progress-track"><div id="progressBar" class="progress-bar"></div></div>
+          <div class="progress-controls">
+            <button type="button" data-progress="25">25%</button>
+            <button type="button" data-progress="50">50%</button>
+            <button type="button" data-progress="75">75%</button>
+            <button type="button" data-progress="100">100%</button>
+          </div>
+          <label class="workspace-label">Project status</label>
+          <select id="projectStatus" class="workspace-select">
+            <option>Planning</option><option>Building</option><option>Testing</option><option>Complete</option>
+          </select>
+        </section>
+
+        <section class="workspace-card files-card">
+          <div class="card-heading"><strong>Files & Code</strong><button id="newFileBtn" class="small-action" type="button">＋ File</button></div>
+          <div class="workspace-file-layout">
+            <div id="workspaceFiles" class="workspace-files"></div>
+            <div class="code-editor-wrap">
+              <div class="editor-top"><span id="currentFileName">Select a file</span><button id="saveFileBtn" type="button">Save file</button></div>
+              <textarea id="codeEditor" class="code-editor" spellcheck="false" placeholder="Select a file or create one..."></textarea>
+            </div>
+          </div>
+        </section>
+
+        <section class="workspace-card build-card">
+          <div class="card-heading"><strong>Build Tools</strong></div>
+          <div class="build-tools">
+            <button type="button" data-worktool="code">💻 Generate code</button>
+            <button type="button" data-worktool="fix">🛠 Fix a bug</button>
+            <button type="button" data-worktool="plan">🧭 Create build plan</button>
+            <button type="button" data-worktool="review">🔍 Review project</button>
+          </div>
+        </section>
+
+        <section class="workspace-card project-chat-card">
+          <div class="card-heading"><strong>Project Chat</strong><span class="workspace-online">● Project context on</span></div>
+          <div id="workspaceChat" class="workspace-chat"></div>
+          <div class="workspace-chat-input">
+            <input id="workspaceInput" type="text" placeholder="Ask Nova about this project...">
+            <button id="workspaceSend" type="button">➤</button>
+          </div>
+        </section>
+      </div>
+    </div>
+
     <div id="toolModal" class="tool-modal" aria-hidden="true">
       <div class="tool-modal-card">
         <div class="tool-modal-head">
