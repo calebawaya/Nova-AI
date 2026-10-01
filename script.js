@@ -73,7 +73,7 @@ function getAIResponse(question) {
   return "Interesting! 🤔 I'm still learning. Ask me about HTML, CSS, JavaScript, business, programming, or myself.";
 }
 
-function sendMessage() {
+async function sendMessage() {
   const text = input.value.trim();
 
   if (!text) return;
@@ -83,18 +83,23 @@ function sendMessage() {
   sendBtn.disabled = true;
   showThinking();
 
-  setTimeout(() => {
+  try {
+    const response = await fetch("http://127.0.0.1:5000/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: text })
+    });
+
+    if (!response.ok) throw new Error("Backend error");
+
+    const data = await response.json();
     removeThinking();
-    addMessage(getAIResponse(text), "ai");
+    addMessage(data.reply, "ai");
+  } catch (error) {
+    removeThinking();
+    addMessage(getAIResponse(text) + "<br><small>Python backend is offline, so Nova used its browser backup.</small>", "ai");
+  } finally {
     sendBtn.disabled = false;
     input.focus();
-  }, 700);
-}
-
-sendBtn.addEventListener("click", sendMessage);
-
-input.addEventListener("keydown", (event) => {
-  if (event.key === "Enter") sendMessage();
-});
-
-input.focus();
+  }
+};
