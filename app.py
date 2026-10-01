@@ -1,5 +1,8 @@
 import os
+import re
 import sqlite3
+import time
+from collections import defaultdict, deque
 
 from flask import Flask, request, jsonify
 from flask_cors import CORS
@@ -15,6 +18,13 @@ DB_NAME = "nova.db"
 OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-5.6-luna")
 client = OpenAI() if os.getenv("OPENAI_API_KEY") else None
 
+SESSION_PATTERN = re.compile(r"^[A-Za-z0-9_-]{10,100}$")
+MAX_MESSAGE_LENGTH = 4000
+RATE_LIMIT_COUNT = 30
+RATE_LIMIT_WINDOW = 60
+request_log = defaultdict(deque)
+
+
 def init_db():
     with sqlite3.connect(DB_NAME) as db:
         db.execute("""
@@ -28,6 +38,7 @@ def init_db():
         """)
         db.commit()
 
+
 def save_message(session_id, role, message):
     with sqlite3.connect(DB_NAME) as db:
         db.execute(
@@ -36,6 +47,7 @@ def save_message(session_id, role, message):
         )
         db.commit()
 
+
 def get_history(session_id):
     with sqlite3.connect(DB_NAME) as db:
         rows = db.execute(
@@ -43,10 +55,18 @@ def get_history(session_id):
             "WHERE session_id = ? ORDER BY id DESC LIMIT 30",
             (session_id,)
         ).fetchall()
+
     return [
-        {"role": r[0], "message": r[1], "created_at": r[2]}
-        for r in reversed(rows)
+        {"role": row[0], "message": row[1], "created_at": row[2]}
+        for row in reversed(rows)
     ]
+
+
+def delete_history(session_id):
+    with sqlite3.connect(DB_NAME) as db:
+        db.execute("DELETE FROM messages WHERE session_id = ?", (session_id,))
+        db.commit()
+
 
 def fallback_response(message):
     q = message.lower().strip()
@@ -61,7 +81,7 @@ def fallback_response(message):
         return "HTML creates the structure of a website. 🌐"
     if "css" in q:
         return "CSS controls the design, layout, colors and animations of websites. 🎨"
-    if "javascript" in q or q == "js":
+    if "javascript" in q or re.search(r"\bjs\b", q):
         return "JavaScript makes websites interactive and powerful. ⚡"
     if "python" in q:
         return "Python powers my backend, while SQLite stores conversation history. 🐍"
@@ -71,7 +91,9 @@ def fallback_response(message):
         return "A good business starts by solving a real problem for people. 💡"
     if "help" in q:
         return "I can help with programming, websites, Python, SQL, business ideas and Nova AI. 🚀"
+
     return "I'm still learning. Try asking me about programming, websites, Python, SQL, business, or myself."
+
 
 def ai_response(message, session_id):
     if not client:
@@ -94,6 +116,25 @@ def ai_response(message, session_id):
     )
     return response.output_text
 
+
+def valid_session_id(session_id):
+    return bool(SESSION_PATTERN.fullmatch(session_id))
+
+
+def rate_limit_ok(ip_address):
+    now = time.monotonic()
+    timestamps = request_log[ip_address]
+
+    while timestamps and now - timestamps[0] > RATE_LIMIT_WINDOW:
+        timestamps.popleft()
+
+    if len(timestamps) >= RATE_LIMIT_COUNT:
+        return False
+
+    timestamps.append(now)
+    return True
+
+
 @app.get("/api/health")
 def health():
     return jsonify({
@@ -102,21 +143,33 @@ def health():
         "ai_enabled": client is not None
     })
 
+
 @app.post("/api/chat")
 def chat():
+    if not rate_limit_ok(request.remote_addr or "unknown"):
+        return jsonify({"error": "Too many requests. Please wait a moment."}), 429
+
     data = request.get_json(silent=True) or {}
     message = str(data.get("message", "")).strip()
-    session_id = str(data.get("session_id", "default")).strip() or "default"
+    session_id = str(data.get("session_id", "")).strip()
 
     if not message:
         return jsonify({"error": "Message is required."}), 400
+
+    if len(message) > MAX_MESSAGE_LENGTH:
+        return jsonify({
+            "error": f"Message is too long. Maximum length is {MAX_MESSAGE_LENGTH} characters."
+        }), 400
+
+    if not valid_session_id(session_id):
+        return jsonify({"error": "Invalid session ID."}), 400
 
     save_message(session_id, "user", message)
 
     try:
         reply = ai_response(message, session_id)
     except Exception as error:
-        print(f"AI error: {error}")
+        app.logger.exception("AI request failed")
         reply = fallback_response(message)
 
     save_message(session_id, "assistant", reply)
@@ -127,11 +180,25 @@ def chat():
         "ai_enabled": client is not None
     })
 
+
 @app.get("/api/history/<session_id>")
 def history(session_id):
+    if not valid_session_id(session_id):
+        return jsonify({"error": "Invalid session ID."}), 400
+
     return jsonify({"messages": get_history(session_id)})
+
+
+@app.delete("/api/history/<session_id>")
+def clear_history(session_id):
+    if not valid_session_id(session_id):
+        return jsonify({"error": "Invalid session ID."}), 400
+
+    delete_history(session_id)
+    return jsonify({"success": True})
+
 
 init_db()
 
 if __name__ == "__main__":
-    app.run(host="127.0.0.1", port=5000, debug=True)
+    app.run(host="127.0.0.1", port=5000, debug=False)
