@@ -94,7 +94,27 @@
         </div>
       </main>
 
-      <div class="input-area">
+      <div id="toolModal" class="tool-modal" aria-hidden="true">
+      <div class="tool-modal-card">
+        <div class="tool-modal-head">
+          <div>
+            <span id="toolModalIcon">✦</span>
+            <strong id="toolModalTitle">AI Tool</strong>
+          </div>
+          <button id="closeToolModal" type="button" aria-label="Close tool">×</button>
+        </div>
+        <p id="toolModalDescription" class="tool-modal-description"></p>
+        <label class="tool-label" for="toolRequest">Your request</label>
+        <textarea id="toolRequest" class="tool-request" rows="7" placeholder="Tell Nova what you want to build..."></textarea>
+        <div id="toolExtraFields" class="tool-extra-fields"></div>
+        <div class="tool-modal-actions">
+          <button id="cancelTool" type="button" class="tool-cancel">Cancel</button>
+          <button id="runTool" type="button" class="tool-run">✦ Run tool</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="input-area">
         <input id="userInput" type="text" placeholder="Message Nova AI..." autocomplete="off">
         <button id="sendBtn" aria-label="Send message">➤</button>
       </div>
