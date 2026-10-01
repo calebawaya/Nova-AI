@@ -47,6 +47,101 @@ rememberSession(sessionId);
 // Change this one value when Nova's Python backend is deployed online.
 const API_URL = "http://127.0.0.1:5000";
 
+let isStreaming = false;
+let stopStreamingRequested = false;
+
+function setStreamingUI(active) {
+  isStreaming = active;
+  sendBtn.disabled = active;
+  sendBtn.textContent = active ? "■" : "➤";
+  sendBtn.title = active ? "Stop generating" : "Send message";
+}
+
+function stopStreaming() {
+  if (!isStreaming) return;
+  stopStreamingRequested = true;
+  isStreaming = false;
+  const stopButton = document.getElementById("stopStreamBtn");
+  stopButton?.remove();
+  sendBtn.disabled = false;
+  sendBtn.textContent = "➤";
+  sendBtn.title = "Send message";
+}
+
+function createStreamingMessage() {
+  clearWelcome();
+
+  const message = document.createElement("div");
+  message.className = "message ai";
+
+  const avatar = document.createElement("div");
+  avatar.className = "avatar";
+  avatar.textContent = "✦";
+
+  const content = document.createElement("div");
+  content.className = "message-content";
+
+  const bubble = document.createElement("div");
+  bubble.className = "bubble streaming-bubble";
+
+  const cursor = document.createElement("span");
+  cursor.className = "stream-cursor";
+  cursor.textContent = "▌";
+
+  const meta = document.createElement("div");
+  meta.className = "message-meta";
+  const time = document.createElement("span");
+  time.textContent = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  meta.appendChild(time);
+
+  content.appendChild(bubble);
+  content.appendChild(meta);
+  message.appendChild(avatar);
+  message.appendChild(content);
+  chat.appendChild(message);
+
+  return { message, bubble, cursor, meta };
+}
+
+async function streamText(text) {
+  const ui = createStreamingMessage();
+  const fullText = String(text ?? "");
+  let output = "";
+
+  ui.bubble.appendChild(ui.cursor);
+
+  for (let i = 0; i < fullText.length; i += 3) {
+    if (stopStreamingRequested) break;
+
+    output += fullText.slice(i, i + 3);
+    ui.bubble.textContent = output;
+    ui.bubble.appendChild(ui.cursor);
+    chat.scrollTop = chat.scrollHeight;
+
+    await new Promise(resolve => setTimeout(resolve, 12));
+  }
+
+  ui.cursor.remove();
+
+  const copyButton = document.createElement("button");
+  copyButton.className = "message-action";
+  copyButton.type = "button";
+  copyButton.textContent = "Copy";
+  copyButton.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(output);
+      copyButton.textContent = "Copied";
+      setTimeout(() => copyButton.textContent = "Copy", 1200);
+    } catch {
+      copyButton.textContent = "Unavailable";
+      setTimeout(() => copyButton.textContent = "Copy", 1200);
+    }
+  });
+  ui.meta.appendChild(copyButton);
+
+  return output;
+}
+
 function clearWelcome() {
   document.querySelector(".welcome")?.remove();
 }
@@ -125,24 +220,34 @@ function addRegenerateButton(question) {
 }
 
 async function requestAIResponse(text, isRegenerate = false) {
+  stopStreamingRequested = false;
+  setStreamingUI(true);
   showThinking();
+
   try {
     const response = await fetch(`${API_URL}/api/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ message: text, session_id: sessionId })
     });
+
     if (!response.ok) throw new Error("Backend error");
+
     const data = await response.json();
     removeThinking();
-    addMessage(data.reply, "ai");
-    addRegenerateButton(text);
+
+    await streamText(data.reply);
+    if (!stopStreamingRequested) addRegenerateButton(text);
     return true;
   } catch {
     removeThinking();
-    addMessage(getAIResponse(text) + " Python backend is offline, so Nova used its browser backup.", "ai");
-    addRegenerateButton(text);
+    await streamText(getAIResponse(text) + " Python backend is offline, so Nova used its browser backup.");
+    if (!stopStreamingRequested) addRegenerateButton(text);
     return false;
+  } finally {
+    stopStreamingRequested = false;
+    setStreamingUI(false);
+    input.focus();
   }
 }
 
@@ -230,11 +335,12 @@ function resetChatScreen() {
 
 async function sendMessage() {
   const text = input.value.trim();
-  if (!text || sendBtn.disabled) return;
+  if (!text || isStreaming) return;
 
   addMessage(text, "user");
   input.value = "";
-  sendBtn.disabled = true;
+  stopStreamingRequested = false;
+  setStreamingUI(true);
   showThinking();
 
   try {
@@ -249,24 +355,31 @@ async function sendMessage() {
     const data = await response.json();
     rememberSession(sessionId, data.title || createConversationTitle(text));
     removeThinking();
-    addMessage(data.reply, "ai");
-    addRegenerateButton(text);
+
+    await streamText(data.reply);
+    if (!stopStreamingRequested) addRegenerateButton(text);
     await loadHistory();
   } catch (error) {
     removeThinking();
-    addMessage(
+    await streamText(
       getAIResponse(text) +
-        " Python backend is offline, so Nova used its browser backup.",
-      "ai"
+      " Python backend is offline, so Nova used its browser backup."
     );
-    addRegenerateButton(text);
+    if (!stopStreamingRequested) addRegenerateButton(text);
   } finally {
-    sendBtn.disabled = false;
+    stopStreamingRequested = false;
+    setStreamingUI(false);
     input.focus();
   }
 }
 
-sendBtn.addEventListener("click", sendMessage);
+sendBtn.addEventListener("click", () => {
+  if (isStreaming) {
+    stopStreaming();
+    return;
+  }
+  sendMessage();
+});
 
 input.addEventListener("keydown", (event) => {
   if (event.key === "Enter") sendMessage();
@@ -417,11 +530,6 @@ async function restoreChat() {
 
     const lastUser = [...data.messages].reverse().find(item => item.role === "user");
     if (lastUser) addRegenerateButton(lastUser.message);
-  } catch {
-    // Keep the welcome screen when the backend is unavailable.
-  }
-}
-    });
   } catch {
     // Keep the welcome screen when the backend is unavailable.
   }
