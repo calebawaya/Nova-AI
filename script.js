@@ -1,8 +1,14 @@
 const chat = document.getElementById("chat");
 const input = document.getElementById("userInput");
 const sendBtn = document.getElementById("sendBtn");
-const sessionId = localStorage.getItem("novaSessionId") || crypto.randomUUID();
+
+const sessionId =
+  localStorage.getItem("novaSessionId") || crypto.randomUUID();
+
 localStorage.setItem("novaSessionId", sessionId);
+
+// Change this one value when Nova's Python backend is deployed online.
+const API_URL = "http://127.0.0.1:5000";
 
 function addMessage(text, type) {
   const message = document.createElement("div");
@@ -64,15 +70,23 @@ function getAIResponse(question) {
     return "JavaScript makes websites interactive and powerful. ⚡";
   }
 
+  if (q.includes("python")) {
+    return "Python powers Nova's backend. 🐍";
+  }
+
+  if (q.includes("sql") || q.includes("database")) {
+    return "SQLite stores Nova's conversation history. 🗄️";
+  }
+
   if (q.includes("business")) {
     return "A good business starts by solving a real problem for people. 💡";
   }
 
   if (q.includes("help")) {
-    return "I can talk about HTML, CSS, JavaScript, business ideas, and programming. Try asking me something! 🚀";
+    return "I can help with programming, websites, Python, SQL, business ideas and Nova AI. 🚀";
   }
 
-  return "Interesting! 🤔 I'm still learning. Ask me about HTML, CSS, JavaScript, business, programming, or myself.";
+  return "Interesting! 🤔 I'm still learning. Ask me about programming, websites, Python, SQL, business, or myself.";
 }
 
 async function sendMessage() {
@@ -86,22 +100,41 @@ async function sendMessage() {
   showThinking();
 
   try {
-    const response = await fetch("http://127.0.0.1:5000/api/chat", {
+    const response = await fetch(`${API_URL}/api/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: text, session_id: sessionId })
+      body: JSON.stringify({
+        message: text,
+        session_id: sessionId
+      })
     });
 
     if (!response.ok) throw new Error("Backend error");
 
     const data = await response.json();
+
     removeThinking();
     addMessage(data.reply, "ai");
   } catch (error) {
     removeThinking();
-    addMessage(getAIResponse(text) + "<br><small>Python backend is offline, so Nova used its browser backup.</small>", "ai");
+
+    addMessage(
+      getAIResponse(text) +
+        "<br><small>Python backend is offline, so Nova used its browser backup.</small>",
+      "ai"
+    );
   } finally {
     sendBtn.disabled = false;
     input.focus();
   }
-};
+}
+
+sendBtn.addEventListener("click", sendMessage);
+
+input.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    sendMessage();
+  }
+});
+
+input.focus();
