@@ -122,6 +122,7 @@
           <p id="workspaceDescription">Project description</p>
         </div>
         <div class="workspace-actions">
+          <button id="githubConnectBtn" type="button">◈ GitHub</button>
           <button id="workspaceSave" type="button">Save</button>
           <button id="workspaceClose" type="button">×</button>
         </div>
@@ -144,7 +145,7 @@
         </section>
 
         <section class="workspace-card files-card">
-          <div class="card-heading"><strong>Files & Code</strong><button id="newFileBtn" class="small-action" type="button">＋ File</button></div>
+          <div class="card-heading"><strong>Files & Code</strong><div class="file-card-actions"><span id="githubFileStatus" class="github-file-status">Local workspace</span><button id="refreshGithubBtn" class="small-action" type="button">↻ GitHub</button><button id="newFileBtn" class="small-action" type="button">＋ File</button></div></div>
           <div class="workspace-file-layout">
             <div id="workspaceFiles" class="workspace-files"></div>
             <div class="code-editor-wrap">
@@ -172,6 +173,19 @@
             <button id="workspaceSend" type="button">➤</button>
           </div>
         </section>
+      </div>
+    </div>
+
+    <div id="githubModal" class="github-modal" aria-hidden="true">
+      <div class="github-modal-card">
+        <div class="github-modal-head"><strong>Connect GitHub repository</strong><button id="closeGithubModal" type="button">×</button></div>
+        <p class="github-modal-description">Connect this project to a GitHub repository. Nova can load repository files and commit your saved edits.</p>
+        <label class="tool-label" for="githubRepoInput">Repository</label>
+        <input id="githubRepoInput" class="project-input" placeholder="calebawaya/Nova-AI" autocomplete="off">
+        <label class="tool-label" for="githubBranchInput">Branch</label>
+        <input id="githubBranchInput" class="project-input" placeholder="main" value="main" autocomplete="off">
+        <div id="githubConnectionStatus" class="github-connection-status">Not connected</div>
+        <div class="project-modal-actions"><button id="cancelGithub" class="tool-cancel" type="button">Cancel</button><button id="connectGithub" class="tool-run" type="button">◈ Connect</button></div>
       </div>
     </div>
 

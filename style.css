@@ -190,3 +190,11 @@ body[data-theme="light"] .project-input { background:#f7f9fc; color:#162033; }
 body[data-theme="light"] .workspace-view{background:#eef3fb}body[data-theme="light"] .workspace-card{background:#fff}body[data-theme="light"] .code-editor{background:#f7f9fc;color:#162033}
 @media(max-width:900px){.workspace-grid{grid-template-columns:1fr}.overview-card,.files-card,.build-card,.project-chat-card{grid-column:1;grid-row:auto}.workspace-file-layout{height:340px}}
 @media(max-width:600px){.workspace-view{padding:12px}.workspace-header{gap:8px}.workspace-title-wrap h1{font-size:19px}.workspace-file-layout{grid-template-columns:105px 1fr}.workspace-actions button:first-child{display:none}}
+
+.workspace-actions button#githubConnectBtn,.file-card-actions .small-action{display:inline-flex;align-items:center;gap:5px}
+.file-card-actions{display:flex;align-items:center;gap:6px;min-width:0}.github-file-status{font-size:9px;color:#7389ff;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.github-modal{position:fixed;inset:0;z-index:120;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(0,0,0,.7);backdrop-filter:blur(8px)}.github-modal.open{display:flex}
+.github-modal-card{width:min(520px,100%);padding:22px;border:1px solid var(--border);border-radius:20px;background:var(--panel);box-shadow:0 30px 80px rgba(0,0,0,.5)}
+.github-modal-head{display:flex;justify-content:space-between;align-items:center;color:var(--text);font-size:18px}.github-modal-head button{width:34px;height:34px;border:1px solid var(--border);border-radius:9px;background:transparent;color:var(--muted);font-size:22px;cursor:pointer}
+.github-modal-description{margin:9px 0 18px;color:var(--muted);font-size:12px;line-height:1.5}.github-connection-status{margin:5px 0 16px;padding:9px 10px;border:1px solid var(--border);border-radius:9px;background:#0d1320;color:#8e98ad;font-size:11px}.github-connection-status.connected{border-color:#2d8055;color:#8ff0b5;background:#0c1c16}.github-connection-status.error{border-color:#743747;color:#ff9bad;background:#1e1016}
+body[data-theme="light"] .github-connection-status{background:#f7f9fc}@media(max-width:600px){.file-card-actions .github-file-status{display:none}.workspace-actions button#githubConnectBtn{font-size:0}.workspace-actions button#githubConnectBtn:first-letter{font-size:15px}}

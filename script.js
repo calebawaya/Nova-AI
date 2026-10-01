@@ -30,6 +30,16 @@ let activeProjectId = localStorage.getItem("novaActiveProjectId") || null;
 
 const historySearch = document.getElementById("historySearch");
 
+const githubConnectBtn=document.getElementById("githubConnectBtn");
+const githubModal=document.getElementById("githubModal");
+const closeGithubModal=document.getElementById("closeGithubModal");
+const cancelGithub=document.getElementById("cancelGithub");
+const connectGithub=document.getElementById("connectGithub");
+const githubRepoInput=document.getElementById("githubRepoInput");
+const githubBranchInput=document.getElementById("githubBranchInput");
+const githubConnectionStatus=document.getElementById("githubConnectionStatus");
+const githubFileStatus=document.getElementById("githubFileStatus");
+const refreshGithubBtn=document.getElementById("refreshGithubBtn");
 const workspaceView = document.getElementById("workspaceView");
 const workspaceBack = document.getElementById("workspaceBack");
 const workspaceClose = document.getElementById("workspaceClose");
@@ -47,8 +57,22 @@ const newFileBtn = document.getElementById("newFileBtn");
 const workspaceChat = document.getElementById("workspaceChat");
 const workspaceInput = document.getElementById("workspaceInput");
 const workspaceSend = document.getElementById("workspaceSend");
-let workspaceFileId = null;
-let workspaceFilesState = [];
+let workspaceFileId=null;
+let workspaceFilesState=[];
+let githubRepo=null;
+let githubBranch="main";
+let githubFilesCache=[];
+function projectGithubStorageKey(id){return "novaProjectGithub_"+id;}
+function loadGithubConnection(project){try{const x=JSON.parse(localStorage.getItem(projectGithubStorageKey(project.id))||"null");return x&&x.repo?{repo:x.repo,branch:x.branch||"main"}:{repo:"",branch:"main"};}catch{return {repo:"",branch:"main"};}}
+function saveGithubConnection(id,x){localStorage.setItem(projectGithubStorageKey(id),JSON.stringify(x));}
+function setGithubStatus(t,type=""){if(!githubConnectionStatus)return;githubConnectionStatus.textContent=t;githubConnectionStatus.className="github-connection-status"+(type?" "+type:"");}
+function setGithubFileStatus(t){if(githubFileStatus)githubFileStatus.textContent=t;}
+function openGithubModal(){const p=getActiveProject();if(!p)return;const x=loadGithubConnection(p);githubRepoInput.value=x.repo;githubBranchInput.value=x.branch;setGithubStatus(x.repo?"Saved connection: "+x.repo+" ("+x.branch+")":"Not connected");githubModal.classList.add("open");githubModal.setAttribute("aria-hidden","false");}
+function closeGithubConnectionModal(){githubModal.classList.remove("open");githubModal.setAttribute("aria-hidden","true");}
+async function connectGithubRepo(){const p=getActiveProject(),repo=githubRepoInput.value.trim(),branch=githubBranchInput.value.trim()||"main";if(!p||!repo.includes("/")){setGithubStatus("Enter a repository like calebawaya/Nova-AI.","error");return;}connectGithub.disabled=true;setGithubStatus("Checking repository...");try{const r=await fetch(API_URL+"/api/github/repository?repo="+encodeURIComponent(repo));const d=await r.json();if(!r.ok)throw new Error(d.error||"Repository could not be connected.");githubRepo=d.repo||repo;githubBranch=branch;saveGithubConnection(p.id,{repo:githubRepo,branch});setGithubStatus("Connected to "+githubRepo+" ("+branch+")","connected");setGithubFileStatus("GitHub: "+githubRepo);await loadGithubFiles();closeGithubConnectionModal();}catch(e){setGithubStatus(e.message||"GitHub connection failed.","error");}finally{connectGithub.disabled=false;}}
+async function loadGithubFiles(){if(!githubRepo)return;setGithubFileStatus("Loading GitHub files...");try{const r=await fetch(API_URL+"/api/github/files?repo="+encodeURIComponent(githubRepo)+"&branch="+encodeURIComponent(githubBranch));const d=await r.json();if(!r.ok)throw new Error(d.error||"Could not load GitHub files.");githubFilesCache=d.files||[];workspaceFilesState=githubFilesCache.filter(f=>f.type==="file").map(f=>({id:"gh:"+f.path,name:f.path,content:"",sha:f.sha,githubPath:f.path,source:"github"}));persistWorkspace();renderWorkspaceFiles();if(workspaceFilesState.length)selectWorkspaceFile(workspaceFilesState[0].id);setGithubFileStatus("GitHub: "+githubRepo);}catch(e){setGithubFileStatus("GitHub error");addWorkspaceMessage(e.message||"Could not load GitHub files.","ai");}}
+async function loadGithubFileContent(file){try{const r=await fetch(API_URL+"/api/github/file?repo="+encodeURIComponent(githubRepo)+"&path="+encodeURIComponent(file.githubPath)+"&branch="+encodeURIComponent(githubBranch));const d=await r.json();if(!r.ok)throw new Error(d.error||"Could not load file.");file.content=d.content||"";file.sha=d.sha||file.sha;codeEditor.value=file.content;}catch(e){addWorkspaceMessage(e.message||"Could not load GitHub file.","ai");}}
+
 
 function projectStorageKey(id){ return "novaProjectWorkspace_" + id; }
 function loadWorkspaceState(project){
@@ -69,12 +93,7 @@ function renderWorkspaceFiles(){
     workspaceFiles.appendChild(b);
   });
 }
-function selectWorkspaceFile(id){
-  const file=workspaceFilesState.find(f=>f.id===id);
-  if(!file)return;
-  workspaceFileId=id; currentFileName.textContent=file.name; codeEditor.value=file.content||"";
-  renderWorkspaceFiles();
-}
+function selectWorkspaceFile(id){const file=workspaceFilesState.find(f=>f.id===id);if(!file)return;workspaceFileId=id;currentFileName.textContent=file.name;codeEditor.value=file.content||"";renderWorkspaceFiles();if(file.source==="github"&&!file.content)loadGithubFileContent(file);}
 function updateWorkspaceProgress(value){
   const v=Math.max(0,Math.min(100,Number(value)||0));
   progressBar.style.width=v+"%"; progressLabel.textContent=v+"%";
@@ -88,6 +107,7 @@ function renderWorkspaceChat(){
 }
 function openProjectWorkspace(project){
   const state=loadWorkspaceState(project);
+  const github=loadGithubConnection(project); githubRepo=github.repo||null; githubBranch=github.branch||"main"; if(githubRepo){setGithubFileStatus("GitHub: "+githubRepo);loadGithubFiles();}
   activeProjectId=project.id; localStorage.setItem("novaActiveProjectId",project.id);
   workspaceName.textContent=project.name;
   workspaceDescription.textContent=project.description||"No description yet.";
@@ -113,12 +133,7 @@ function createWorkspaceFile(){
   const file={id:createSessionId(),name:githubRepo ? cleanName : cleanName,content:"",source:githubRepo?"github":"local",githubPath:githubRepo?cleanName:null,sha:null};
   workspaceFilesState.push(file); persistWorkspace(); selectWorkspaceFile(file.id);
 }
-function saveWorkspaceFile(){
-  const file=workspaceFilesState.find(f=>f.id===workspaceFileId);
-  if(!file)return;
-  file.content=codeEditor.value; persistWorkspace();
-  saveFileBtn.textContent="Saved"; setTimeout(()=>saveFileBtn.textContent="Save file",1000);
-}
+async function saveWorkspaceFile(){const file=workspaceFilesState.find(f=>f.id===workspaceFileId);if(!file)return;file.content=codeEditor.value;if(githubRepo){saveFileBtn.textContent="Saving...";try{const r=await fetch(API_URL+"/api/github/file",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({repo:githubRepo,path:file.githubPath||file.name,branch:githubBranch,content:file.content,sha:file.sha||null,message:"Update "+(file.githubPath||file.name)+" from Nova AI"})});const d=await r.json();if(!r.ok)throw new Error(d.error||"GitHub save failed.");file.sha=d.sha||file.sha;file.source="github";file.githubPath=file.githubPath||file.name;setGithubFileStatus("Saved: "+file.githubPath);saveFileBtn.textContent="Saved to GitHub";persistWorkspace();setTimeout(()=>saveFileBtn.textContent="Save file",1200);}catch(e){saveFileBtn.textContent="Save file";addWorkspaceMessage(e.message||"GitHub save failed.","ai");}return;}persistWorkspace();saveFileBtn.textContent="Saved";setTimeout(()=>saveFileBtn.textContent="Save file",1000);}
 async function sendWorkspaceChat(){
   const message=workspaceInput.value.trim();
   if(!message||!activeProjectId||isStreaming)return;
@@ -1052,6 +1067,12 @@ document.querySelectorAll(".tool-card").forEach((button) => {
   button.addEventListener("click", () => openTool(button.dataset.tool));
 });
 
+githubConnectBtn?.addEventListener("click",openGithubModal);
+closeGithubModal?.addEventListener("click",closeGithubConnectionModal);
+cancelGithub?.addEventListener("click",closeGithubConnectionModal);
+connectGithub?.addEventListener("click",connectGithubRepo);
+refreshGithubBtn?.addEventListener("click",loadGithubFiles);
+githubModal?.addEventListener("click",e=>{if(e.target===githubModal)closeGithubConnectionModal();});
 workspaceBack?.addEventListener("click",closeProjectWorkspace);
 workspaceClose?.addEventListener("click",closeProjectWorkspace);
 workspaceSave?.addEventListener("click",persistWorkspace);
