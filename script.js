@@ -27,12 +27,13 @@ function getSavedSessions() {
 }
 
 function saveSessionList(sessions) {
+  sessions = sessions.map(item => ({ ...item, updatedAt: item.updatedAt || Date.now() }));
   localStorage.setItem("novaSessions", JSON.stringify(sessions));
 }
 
 function rememberSession(id, title = "New conversation") {
   const sessions = getSavedSessions().filter(item => item.id !== id);
-  sessions.unshift({ id, title });
+  sessions.unshift({ id, title, updatedAt: Date.now() });
   saveSessionList(sessions.slice(0, 20));
 }
 
@@ -229,8 +230,8 @@ async function loadHistory(filterText = "") {
       const data = await response.json();
       if (!data.messages?.length) continue;
 
-      const title = data.title || session.title || "New conversation";
-      conversations.push({ ...session, title });
+      const title = session.customTitle || data.title || session.title || "New conversation";
+      conversations.push({ ...session, title, updatedAt: session.updatedAt || Date.now() });
     } catch {
       // Keep checking the remaining saved conversations.
     }
@@ -264,18 +265,50 @@ async function loadHistory(filterText = "") {
       await switchConversation(conversation.id);
     });
 
+    const menuButton = document.createElement("button");
+    menuButton.className = "history-menu";
+    menuButton.type = "button";
+    menuButton.textContent = "⋯";
+    menuButton.title = "Conversation options";
+
+    const menu = document.createElement("div");
+    menu.className = "history-menu-panel";
+
+    const renameButton = document.createElement("button");
+    renameButton.textContent = "✎ Rename";
+    renameButton.addEventListener("click", async (event) => {
+      event.stopPropagation();
+      const current = conversation.customTitle || conversation.title;
+      const name = prompt("Rename conversation:", current);
+      if (name && name.trim()) {
+        const sessions = getSavedSessions();
+        const target = sessions.find(item => item.id === conversation.id);
+        if (target) target.customTitle = name.trim().slice(0, 60);
+        saveSessionList(sessions);
+        await loadHistory(historySearch?.value || "");
+      }
+    });
+
     const deleteButton = document.createElement("button");
     deleteButton.className = "history-delete";
     deleteButton.type = "button";
     deleteButton.textContent = "×";
     deleteButton.title = "Delete conversation";
+    menu.appendChild(renameButton);
+    menu.appendChild(deleteButton);
+    menuButton.addEventListener("click", (event) => {
+      event.stopPropagation();
+      document.querySelectorAll(".history-menu-panel.open").forEach(panel => panel.classList.remove("open"));
+      menu.classList.toggle("open");
+    });
     deleteButton.addEventListener("click", async (event) => {
       event.stopPropagation();
       await deleteSession(conversation.id);
     });
 
     row.appendChild(button);
-    row.appendChild(deleteButton);
+    row.appendChild(menuButton);
+    row.appendChild(menu);
     historyList.appendChild(row);
   });
 }
@@ -354,6 +387,7 @@ async function startNewChat() {
 }
 
 historySearch?.addEventListener("input", () => loadHistory(historySearch.value));
+document.addEventListener("click", () => document.querySelectorAll(".history-menu-panel.open").forEach(panel => panel.classList.remove("open")));
 
 newChatBtn?.addEventListener("click", startNewChat);
 
