@@ -24,10 +24,18 @@ function addMessage(text, type) {
   const message = document.createElement("div");
   message.className = `message ${type}`;
 
-  message.innerHTML = `
-    <div class="avatar">✦</div>
-    <div class="bubble">${text}</div>
-  `;
+  const avatar = document.createElement("div");
+  avatar.className = "avatar";
+  avatar.textContent = "✦";
+
+  const bubble = document.createElement("div");
+  bubble.className = "bubble";
+
+  // Use textContent so chat messages cannot inject HTML into the page.
+  bubble.textContent = text;
+
+  message.appendChild(avatar);
+  message.appendChild(bubble);
 
   chat.appendChild(message);
   chat.scrollTop = chat.scrollHeight;
