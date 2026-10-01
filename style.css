@@ -128,3 +128,31 @@ body[data-theme="light"] .tool-card:hover { background:#eef2fb; }
 body[data-theme="light"] .tool-request { background:#f7f9fc; }
 body[data-theme="light"] .tool-field select { background:#f4f6fa; color:#162033; }
 @media(max-width:560px){ .tool-extra-fields { grid-template-columns:1fr; } .tool-modal-card { padding:17px; } }
+
+
+.projects-panel { display:none; position:absolute; left:16px; bottom:82px; z-index:30; width:213px; padding:14px; border:1px solid var(--border); border-radius:14px; background:#0d1320; box-shadow:0 18px 45px rgba(0,0,0,.4); }
+.projects-panel.open { display:block; }
+.projects-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+.projects-head button { border:0; background:transparent; color:var(--muted); font-size:20px; cursor:pointer; }
+.create-project-btn { width:100%; padding:9px; border:1px solid var(--border); border-radius:9px; background:#11182a; color:var(--text); cursor:pointer; font-size:12px; }
+.create-project-btn:hover { border-color:var(--accent); }
+.projects-list { max-height:210px; overflow:auto; margin-top:9px; }
+.project-row { display:flex; gap:5px; align-items:center; margin-bottom:5px; }
+.project-open { flex:1; min-width:0; padding:9px; border:1px solid transparent; border-radius:9px; background:transparent; color:#bdc6d8; text-align:left; cursor:pointer; font-size:11px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.project-open:hover { background:#17213a; }
+.project-delete { width:27px; height:27px; border:1px solid transparent; border-radius:7px; background:transparent; color:#738097; cursor:pointer; }
+.project-delete:hover { color:#ff7d91; background:#24151b; }
+.project-empty { padding:12px 4px; color:#657087; font-size:11px; text-align:center; }
+.project-modal { position:fixed; inset:0; z-index:110; display:none; align-items:center; justify-content:center; padding:20px; background:rgba(0,0,0,.68); backdrop-filter:blur(8px); }
+.project-modal.open { display:flex; }
+.project-modal-card { width:min(520px,100%); padding:22px; border:1px solid var(--border); border-radius:20px; background:var(--panel); box-shadow:0 30px 80px rgba(0,0,0,.45); }
+.project-modal-head { display:flex; justify-content:space-between; align-items:center; color:var(--text); font-size:18px; }
+.project-modal-head button { width:34px; height:34px; border:1px solid var(--border); border-radius:9px; background:transparent; color:var(--muted); font-size:22px; cursor:pointer; }
+.project-modal-description { margin:9px 0 18px; color:var(--muted); font-size:12px; line-height:1.5; }
+.project-input { width:100%; box-sizing:border-box; margin-bottom:13px; padding:11px; border:1px solid var(--border); border-radius:10px; background:#080d17; color:var(--text); outline:none; font:inherit; }
+.project-textarea { resize:vertical; line-height:1.5; }
+.project-input:focus { border-color:var(--accent); }
+.project-modal-actions { display:flex; justify-content:flex-end; gap:9px; }
+body[data-theme="light"] .projects-panel { background:#fff; }
+body[data-theme="light"] .project-input { background:#f7f9fc; color:#162033; }
+@media(max-width:720px){ .projects-panel { left:78px; bottom:70px; width:205px; } }
