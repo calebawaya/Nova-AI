@@ -43,7 +43,24 @@ def init_db():
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
+        db.execute("""
+            CREATE TABLE IF NOT EXISTS projects (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                description TEXT NOT NULL DEFAULT '',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        db.execute("""
+            CREATE TABLE IF NOT EXISTS project_sessions (
+                project_id TEXT NOT NULL,
+                session_id TEXT PRIMARY KEY,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
         db.execute("CREATE INDEX IF NOT EXISTS idx_messages_session_id ON messages(session_id)")
+        db.execute("CREATE INDEX IF NOT EXISTS idx_project_sessions_project_id ON project_sessions(project_id)")
         db.commit()
 
 
@@ -132,6 +149,69 @@ def delete_history(session_id):
         db.commit()
 
 
+def get_project(project_id):
+    with sqlite3.connect(DB_NAME) as db:
+        row = db.execute(
+            "SELECT id, name, description, created_at, updated_at FROM projects WHERE id = ?",
+            (project_id,)
+        ).fetchone()
+    if not row:
+        return None
+    return {"id": row[0], "name": row[1], "description": row[2], "created_at": row[3], "updated_at": row[4]}
+
+
+def get_projects():
+    with sqlite3.connect(DB_NAME) as db:
+        rows = db.execute(
+            "SELECT id, name, description, created_at, updated_at FROM projects "
+            "ORDER BY updated_at DESC, id DESC"
+        ).fetchall()
+    return [{"id": r[0], "name": r[1], "description": r[2], "created_at": r[3], "updated_at": r[4]} for r in rows]
+
+
+def save_project(project_id, name, description):
+    with sqlite3.connect(DB_NAME) as db:
+        db.execute(
+            """
+            INSERT INTO projects (id, name, description, created_at, updated_at)
+            VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            ON CONFLICT(id) DO UPDATE SET
+                name = excluded.name,
+                description = excluded.description,
+                updated_at = CURRENT_TIMESTAMP
+            """,
+            (project_id, name, description)
+        )
+        db.commit()
+
+
+def delete_project(project_id):
+    with sqlite3.connect(DB_NAME) as db:
+        db.execute("DELETE FROM project_sessions WHERE project_id = ?", (project_id,))
+        db.execute("DELETE FROM projects WHERE id = ?", (project_id,))
+        db.commit()
+
+
+def attach_session_to_project(project_id, session_id):
+    with sqlite3.connect(DB_NAME) as db:
+        db.execute(
+            """
+            INSERT INTO project_sessions (project_id, session_id)
+            VALUES (?, ?)
+            ON CONFLICT(session_id) DO UPDATE SET project_id = excluded.project_id
+            """,
+            (project_id, session_id)
+        )
+        db.execute("UPDATE projects SET updated_at = CURRENT_TIMESTAMP WHERE id = ?", (project_id,))
+        db.commit()
+
+
+def get_project_for_session(session_id):
+    with sqlite3.connect(DB_NAME) as db:
+        row = db.execute("SELECT project_id FROM project_sessions WHERE session_id = ?", (session_id,)).fetchone()
+    return get_project(row[0]) if row else None
+
+
 def fallback_response(message):
     q = message.lower().strip()
 
@@ -159,12 +239,13 @@ def fallback_response(message):
     return "I'm still learning. Try asking me about programming, websites, Python, SQL, business, or myself."
 
 
-def ai_response(message, session_id, response_style="balanced", memory_enabled=True):
+def ai_response(message, session_id, response_style="balanced", memory_enabled=True, project_id=None):
     if not client:
         return fallback_response(message)
 
     history = get_history(session_id)
     memory = get_session_memory(session_id) if memory_enabled else ""
+    project = get_project(project_id) if project_id else get_project_for_session(session_id)
 
     style_instruction = {
         "concise": "Keep answers concise and focused.",
@@ -173,6 +254,15 @@ def ai_response(message, session_id, response_style="balanced", memory_enabled=T
     }.get(response_style, "Use a balanced level of detail.")
 
     input_items = []
+    if project:
+        input_items.append({
+            "role": "developer",
+            "content": (
+                f"Active Nova project: {project['name']}\n"
+                f"Project description: {project['description'] or '(no description yet)'}\n"
+                "Treat this as ongoing project context and keep suggestions consistent with it."
+            )
+        })
     if memory:
         input_items.append({
             "role": "developer",
@@ -234,6 +324,7 @@ def chat():
     data = request.get_json(silent=True) or {}
     message = str(data.get("message", "")).strip()
     session_id = str(data.get("session_id", "")).strip()
+    project_id = str(data.get("project_id", "")).strip() or None
     response_style = str(data.get("response_style", "balanced")).strip().lower()
     memory_enabled = data.get("memory_enabled", True) is not False
 
@@ -251,10 +342,17 @@ def chat():
     if not valid_session_id(session_id):
         return jsonify({"error": "Invalid session ID."}), 400
 
+    if project_id and not valid_session_id(project_id):
+        return jsonify({"error": "Invalid project ID."}), 400
+    if project_id:
+        if not get_project(project_id):
+            return jsonify({"error": "Project not found."}), 404
+        attach_session_to_project(project_id, session_id)
+
     save_message(session_id, "user", message)
 
     try:
-        reply = ai_response(message, session_id, response_style, memory_enabled)
+        reply = ai_response(message, session_id, response_style, memory_enabled, project_id)
     except Exception as error:
         app.logger.exception("AI request failed")
         reply = fallback_response(message)
@@ -268,6 +366,64 @@ def chat():
         "history_count": len(get_history(session_id)),
         "ai_enabled": client is not None
     })
+
+
+@app.get("/api/projects")
+def projects():
+    return jsonify({"projects": get_projects()})
+
+
+@app.post("/api/projects")
+def create_project():
+    data = request.get_json(silent=True) or {}
+    project_id = str(data.get("id", "")).strip()
+    name = str(data.get("name", "")).strip()
+    description = str(data.get("description", "")).strip()
+    if not valid_session_id(project_id):
+        return jsonify({"error": "Invalid project ID."}), 400
+    if not name:
+        return jsonify({"error": "Project name is required."}), 400
+    if len(name) > 50 or len(description) > 500:
+        return jsonify({"error": "Project name or description is too long."}), 400
+    save_project(project_id, name, description)
+    return jsonify({"project": get_project(project_id)}), 201
+
+
+@app.get("/api/projects/<project_id>")
+def project(project_id):
+    if not valid_session_id(project_id):
+        return jsonify({"error": "Invalid project ID."}), 400
+    item = get_project(project_id)
+    if not item:
+        return jsonify({"error": "Project not found."}), 404
+    return jsonify({"project": item})
+
+
+@app.put("/api/projects/<project_id>")
+def update_project(project_id):
+    if not valid_session_id(project_id):
+        return jsonify({"error": "Invalid project ID."}), 400
+    if not get_project(project_id):
+        return jsonify({"error": "Project not found."}), 404
+    data = request.get_json(silent=True) or {}
+    name = str(data.get("name", "")).strip()
+    description = str(data.get("description", "")).strip()
+    if not name:
+        return jsonify({"error": "Project name is required."}), 400
+    if len(name) > 50 or len(description) > 500:
+        return jsonify({"error": "Project name or description is too long."}), 400
+    save_project(project_id, name, description)
+    return jsonify({"project": get_project(project_id)})
+
+
+@app.delete("/api/projects/<project_id>")
+def remove_project(project_id):
+    if not valid_session_id(project_id):
+        return jsonify({"error": "Invalid project ID."}), 400
+    if not get_project(project_id):
+        return jsonify({"error": "Project not found."}), 404
+    delete_project(project_id)
+    return jsonify({"success": True})
 
 
 @app.get("/api/history/<session_id>")
