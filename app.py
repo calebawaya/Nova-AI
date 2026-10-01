@@ -159,12 +159,18 @@ def fallback_response(message):
     return "I'm still learning. Try asking me about programming, websites, Python, SQL, business, or myself."
 
 
-def ai_response(message, session_id):
+def ai_response(message, session_id, response_style="balanced", memory_enabled=True):
     if not client:
         return fallback_response(message)
 
     history = get_history(session_id)
-    memory = get_session_memory(session_id)
+    memory = get_session_memory(session_id) if memory_enabled else ""
+
+    style_instruction = {
+        "concise": "Keep answers concise and focused.",
+        "detailed": "Give detailed explanations with useful examples.",
+        "balanced": "Use a balanced level of detail."
+    }.get(response_style, "Use a balanced level of detail.")
 
     input_items = []
     if memory:
@@ -184,7 +190,8 @@ def ai_response(message, session_id):
             "You are Nova AI, a friendly and helpful assistant. "
             "Give clear, age-appropriate answers. "
             "When explaining programming, use beginner-friendly steps and examples. "
-            "Use session memory when relevant, but never invent facts."
+            "Use session memory when relevant, but never invent facts. "
+            f"{style_instruction}"
         ),
         input=input_items
     )
@@ -227,6 +234,11 @@ def chat():
     data = request.get_json(silent=True) or {}
     message = str(data.get("message", "")).strip()
     session_id = str(data.get("session_id", "")).strip()
+    response_style = str(data.get("response_style", "balanced")).strip().lower()
+    memory_enabled = data.get("memory_enabled", True) is not False
+
+    if response_style not in {"balanced", "concise", "detailed"}:
+        response_style = "balanced"
 
     if not message:
         return jsonify({"error": "Message is required."}), 400
@@ -242,7 +254,7 @@ def chat():
     save_message(session_id, "user", message)
 
     try:
-        reply = ai_response(message, session_id)
+        reply = ai_response(message, session_id, response_style, memory_enabled)
     except Exception as error:
         app.logger.exception("AI request failed")
         reply = fallback_response(message)
