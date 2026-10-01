@@ -156,3 +156,17 @@ body[data-theme="light"] .tool-field select { background:#f4f6fa; color:#162033;
 body[data-theme="light"] .projects-panel { background:#fff; }
 body[data-theme="light"] .project-input { background:#f7f9fc; color:#162033; }
 @media(max-width:720px){ .projects-panel { left:78px; bottom:70px; width:205px; } }
+
+
+.project-active {
+  margin: 0 0 8px;
+  padding: 7px 9px;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  background: rgba(82,109,255,.12);
+  color: var(--accent-2);
+  font-size: 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
