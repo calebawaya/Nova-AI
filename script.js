@@ -9,18 +9,27 @@ const historyBtn = document.getElementById("historyBtn");
 const chatBtn = document.getElementById("chatBtn");
 const historyList = document.getElementById("historyList");
 
-const sessionId =
-  localStorage.getItem("novaSessionId") || crypto.randomUUID();
+function createSessionId() {
+  if (window.crypto?.randomUUID) return crypto.randomUUID();
+  return "nova-" + Date.now() + "-" + Math.random().toString(36).slice(2);
+}
 
-localStorage.setItem("novaSessionId", sessionId);
+let sessionId = localStorage.getItem("novaSessionId");
+if (!sessionId) {
+  sessionId = createSessionId();
+  localStorage.setItem("novaSessionId", sessionId);
+}
 
 // Change this one value when Nova's Python backend is deployed online.
 const API_URL = "http://127.0.0.1:5000";
 
-function clearWelcome() { document.querySelector(".welcome")?.remove(); }
+function clearWelcome() {
+  document.querySelector(".welcome")?.remove();
+}
 
 function addMessage(text, type) {
   clearWelcome();
+
   const message = document.createElement("div");
   message.className = `message ${type}`;
 
@@ -30,13 +39,10 @@ function addMessage(text, type) {
 
   const bubble = document.createElement("div");
   bubble.className = "bubble";
-
-  // Use textContent so chat messages cannot inject HTML into the page.
-  bubble.textContent = text;
+  bubble.textContent = String(text ?? "");
 
   message.appendChild(avatar);
   message.appendChild(bubble);
-
   chat.appendChild(message);
   chat.scrollTop = chat.scrollHeight;
 }
@@ -84,7 +90,7 @@ function getAIResponse(question) {
     return "CSS controls the design, layout, colors and animations of websites. 🎨";
   }
 
-  if (q.includes("javascript") || q.includes("js")) {
+  if (q.includes("javascript") || /\bjs\b/.test(q)) {
     return "JavaScript makes websites interactive and powerful. ⚡";
   }
 
@@ -107,14 +113,22 @@ function getAIResponse(question) {
   return "Interesting! 🤔 I'm still learning. Ask me about programming, websites, Python, SQL, business, or myself.";
 }
 
+function resetChatScreen() {
+  chat.innerHTML = `
+    <div class="welcome">
+      <div class="welcome-icon">✦</div>
+      <h1>How can I help you?</h1>
+      <p>Ask Nova about coding, ideas, websites, business, or anything you're curious about.</p>
+    </div>
+  `;
+}
+
 async function sendMessage() {
   const text = input.value.trim();
-
-  if (!text) return;
+  if (!text || sendBtn.disabled) return;
 
   addMessage(text, "user");
   input.value = "";
-  clearWelcome();
   sendBtn.disabled = true;
   showThinking();
 
@@ -122,25 +136,20 @@ async function sendMessage() {
     const response = await fetch(`${API_URL}/api/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        message: text,
-        session_id: sessionId
-      })
+      body: JSON.stringify({ message: text, session_id: sessionId })
     });
 
     if (!response.ok) throw new Error("Backend error");
 
     const data = await response.json();
-
     removeThinking();
     addMessage(data.reply, "ai");
-    loadHistory();
+    await loadHistory();
   } catch (error) {
     removeThinking();
-
     addMessage(
       getAIResponse(text) +
-        "<br><small>Python backend is offline, so Nova used its browser backup.</small>",
+        " Python backend is offline, so Nova used its browser backup.",
       "ai"
     );
   } finally {
@@ -152,19 +161,15 @@ async function sendMessage() {
 sendBtn.addEventListener("click", sendMessage);
 
 input.addEventListener("keydown", (event) => {
-  if (event.key === "Enter") {
-    sendMessage();
-  }
+  if (event.key === "Enter") sendMessage();
 });
-
-input.focus();
-
 
 async function checkConnection() {
   try {
     const response = await fetch(`${API_URL}/api/health`);
     if (!response.ok) throw new Error();
     const data = await response.json();
+
     statusText.textContent = data.ai_enabled ? "AI online" : "Backend online";
     statusDot.style.color = "#4ade80";
   } catch {
@@ -175,12 +180,14 @@ async function checkConnection() {
 
 async function loadHistory() {
   try {
-    const response = await fetch(`${API_URL}/api/history/${sessionId}`);
+    const response = await fetch(`${API_URL}/api/history/${encodeURIComponent(sessionId)}`);
     if (!response.ok) throw new Error("History unavailable");
+
     const data = await response.json();
     historyList.innerHTML = "";
 
     const userMessages = data.messages.filter(item => item.role === "user");
+
     userMessages.forEach((item) => {
       const button = document.createElement("button");
       button.className = "history-item";
@@ -201,6 +208,16 @@ async function loadHistory() {
   }
 }
 
+async function deleteCurrentSession() {
+  try {
+    await fetch(`${API_URL}/api/history/${encodeURIComponent(sessionId)}`, {
+      method: "DELETE"
+    });
+  } catch {
+    // The local chat should still reset if the backend is unavailable.
+  }
+}
+
 historyBtn?.addEventListener("click", () => {
   historyList.classList.toggle("visible");
   historyBtn.classList.toggle("active");
@@ -214,21 +231,19 @@ chatBtn?.addEventListener("click", () => {
   input.focus();
 });
 
-function startNewChat() {
+async function startNewChat() {
+  await deleteCurrentSession();
   localStorage.removeItem("novaSessionId");
   location.reload();
 }
 
 newChatBtn?.addEventListener("click", startNewChat);
 
-clearBtn?.addEventListener("click", () => {
-  chat.innerHTML = `
-    <div class="welcome">
-      <div class="welcome-icon">✦</div>
-      <h1>How can I help you?</h1>
-      <p>Ask Nova about coding, ideas, websites, business, or anything you're curious about.</p>
-    </div>
-  `;
+clearBtn?.addEventListener("click", async () => {
+  await deleteCurrentSession();
+  resetChatScreen();
+  await loadHistory();
+  input.focus();
 });
 
 document.querySelectorAll(".suggestion").forEach((button) => {
@@ -239,3 +254,4 @@ document.querySelectorAll(".suggestion").forEach((button) => {
 });
 
 checkConnection();
+input.focus();
