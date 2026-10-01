@@ -796,12 +796,14 @@ function buildToolPrompt() {
 function runActiveTool() {
   const prompt = buildToolPrompt();
   if (!prompt || !activeTool || isStreaming) return;
+  const config = toolConfigs[activeTool];
   const displayRequest = toolRequest.value.trim();
+  addMessage(`${config.icon} ${config.title}\n${displayRequest}`, "user");
   closeTool();
-  addMessage(`${toolConfigs[activeTool]?.icon || "✦"} ${toolConfigs[activeTool]?.title || "AI Tool"}\n${displayRequest}`, "user");
   requestAIResponse(prompt);
 }
 
+runTool?.addEventListener("click", runActiveTool);
 closeToolModal?.addEventListener("click", closeTool);
 cancelTool?.addEventListener("click", closeTool);
 toolModal?.addEventListener("click", (event) => { if (event.target === toolModal) closeTool(); });
