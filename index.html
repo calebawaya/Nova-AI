@@ -17,10 +17,39 @@
         <p class="side-title">Workspace</p>
         <button class="side-item active" id="chatBtn">💬 Chat</button>
         <button class="side-item" id="historyBtn">🕘 History</button>
+        <button class="side-item" id="settingsBtn">⚙ Settings</button>
       </div>
 
       <div class="history-tools"><input id="historySearch" class="history-search" type="search" placeholder="Search chats..." autocomplete="off"></div>
       <div id="historyList" class="history-list"></div>
+
+      <div id="settingsPanel" class="settings-panel">
+        <div class="settings-head">
+          <strong>Nova Settings</strong>
+          <button id="closeSettings" type="button">×</button>
+        </div>
+        <label class="setting-row">
+          <span>Theme</span>
+          <select id="themeSelect">
+            <option value="dark">Dark</option>
+            <option value="midnight">Midnight Blue</option>
+            <option value="light">Light</option>
+          </select>
+        </label>
+        <label class="setting-row">
+          <span>Response style</span>
+          <select id="styleSelect">
+            <option value="balanced">Balanced</option>
+            <option value="concise">Concise</option>
+            <option value="detailed">Detailed</option>
+          </select>
+        </label>
+        <label class="toggle-row">
+          <span>Conversation memory</span>
+          <input id="memoryToggle" type="checkbox" checked>
+        </label>
+        <p class="settings-note">Settings are saved in this browser.</p>
+      </div>
 
       <div class="sidebar-bottom">
         <div class="ai-card">
