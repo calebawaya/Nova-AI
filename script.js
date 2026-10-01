@@ -714,6 +714,26 @@ document.querySelectorAll(".suggestion").forEach((button) => {
   });
 });
 
+const toolPrompts = {
+  code: "Help me generate code for this idea. Give complete beginner-friendly code when practical and explain where each file goes.",
+  explain: "Explain the code I provide in simple beginner-friendly language. Break down the important parts and tell me what each part does.",
+  fix: "Help me fix this programming error. Identify the likely cause, provide the corrected code, and explain the fix simply.",
+  website: "Help me plan and build a website. Suggest the page structure, features, design, and starter HTML/CSS/JavaScript.",
+  idea: "Generate useful project ideas I can build as a beginner programmer. For each idea, explain the problem it solves and the main features."
+};
+
+document.querySelectorAll(".tool-card").forEach((button) => {
+  button.addEventListener("click", async () => {
+    const tool = button.dataset.tool;
+    const prompt = toolPrompts[tool];
+    if (!prompt || isStreaming) return;
+
+    const request = prompt + "\n\nMy request: ";
+    input.value = request;
+    input.focus();
+  });
+});
+
 loadSettings();
 checkConnection();
 restoreChat();
