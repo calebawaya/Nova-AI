@@ -260,7 +260,7 @@ def chat():
         reply = fallback_response(message)
 
     save_message(session_id, "assistant", reply)
-    if (memory_enabled:
+    if memory_enabled:
         update_session_memory(session_id)
 
     return jsonify({
