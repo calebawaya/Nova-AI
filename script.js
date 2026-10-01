@@ -61,14 +61,89 @@ function addMessage(text, type) {
   avatar.className = "avatar";
   avatar.textContent = "✦";
 
+  const content = document.createElement("div");
+  content.className = "message-content";
+
   const bubble = document.createElement("div");
   bubble.className = "bubble";
   bubble.textContent = String(text ?? "");
 
+  const meta = document.createElement("div");
+  meta.className = "message-meta";
+
+  const time = document.createElement("span");
+  time.textContent = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+
+  meta.appendChild(time);
+
+  if (type === "ai") {
+    const copyButton = document.createElement("button");
+    copyButton.className = "message-action";
+    copyButton.type = "button";
+    copyButton.textContent = "Copy";
+    copyButton.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(String(text ?? ""));
+        copyButton.textContent = "Copied";
+        setTimeout(() => copyButton.textContent = "Copy", 1200);
+      } catch {
+        copyButton.textContent = "Unavailable";
+        setTimeout(() => copyButton.textContent = "Copy", 1200);
+      }
+    });
+    meta.appendChild(copyButton);
+  }
+
+  content.appendChild(bubble);
+  content.appendChild(meta);
   message.appendChild(avatar);
-  message.appendChild(bubble);
+  message.appendChild(content);
   chat.appendChild(message);
   chat.scrollTop = chat.scrollHeight;
+}
+
+function addRegenerateButton(question) {
+  document.querySelector(".regenerate-row")?.remove();
+
+  const row = document.createElement("div");
+  row.className = "regenerate-row";
+
+  const button = document.createElement("button");
+  button.className = "regenerate-button";
+  button.type = "button";
+  button.textContent = "↻ Regenerate response";
+  button.addEventListener("click", async () => {
+    button.disabled = true;
+    const last = [...chat.querySelectorAll(".message.ai")].pop();
+    last?.remove();
+    await requestAIResponse(question, true);
+  });
+
+  row.appendChild(button);
+  chat.appendChild(row);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+async function requestAIResponse(text, isRegenerate = false) {
+  showThinking();
+  try {
+    const response = await fetch(`${API_URL}/api/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: text, session_id: sessionId })
+    });
+    if (!response.ok) throw new Error("Backend error");
+    const data = await response.json();
+    removeThinking();
+    addMessage(data.reply, "ai");
+    addRegenerateButton(text);
+    return true;
+  } catch {
+    removeThinking();
+    addMessage(getAIResponse(text) + " Python backend is offline, so Nova used its browser backup.", "ai");
+    addRegenerateButton(text);
+    return false;
+  }
 }
 
 function showThinking() {
@@ -175,6 +250,7 @@ async function sendMessage() {
     rememberSession(sessionId, data.title || createConversationTitle(text));
     removeThinking();
     addMessage(data.reply, "ai");
+    addRegenerateButton(text);
     await loadHistory();
   } catch (error) {
     removeThinking();
@@ -183,6 +259,7 @@ async function sendMessage() {
         " Python backend is offline, so Nova used its browser backup.",
       "ai"
     );
+    addRegenerateButton(text);
   } finally {
     sendBtn.disabled = false;
     input.focus();
@@ -336,6 +413,14 @@ async function restoreChat() {
       if (item.role === "user" || item.role === "assistant") {
         addMessage(item.message, item.role === "user" ? "user" : "ai");
       }
+    });
+
+    const lastUser = [...data.messages].reverse().find(item => item.role === "user");
+    if (lastUser) addRegenerateButton(lastUser.message);
+  } catch {
+    // Keep the welcome screen when the backend is unavailable.
+  }
+}
     });
   } catch {
     // Keep the welcome screen when the backend is unavailable.
