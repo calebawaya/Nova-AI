@@ -714,24 +714,103 @@ document.querySelectorAll(".suggestion").forEach((button) => {
   });
 });
 
-const toolPrompts = {
-  code: "Help me generate code for this idea. Give complete beginner-friendly code when practical and explain where each file goes.",
-  explain: "Explain the code I provide in simple beginner-friendly language. Break down the important parts and tell me what each part does.",
-  fix: "Help me fix this programming error. Identify the likely cause, provide the corrected code, and explain the fix simply.",
-  website: "Help me plan and build a website. Suggest the page structure, features, design, and starter HTML/CSS/JavaScript.",
-  idea: "Generate useful project ideas I can build as a beginner programmer. For each idea, explain the problem it solves and the main features."
+const toolConfigs = {
+  code: {
+    icon: "💻", title: "Code Generator",
+    description: "Describe what you want to build and Nova will create beginner-friendly code and explain where each file goes.",
+    placeholder: "Example: Build a responsive calculator with HTML, CSS and JavaScript.",
+    fields: `<div class="tool-field"><label>Language</label><select id="toolLanguage"><option>HTML/CSS/JavaScript</option><option>Python</option><option>JavaScript</option><option>SQL</option></select></div>`
+  },
+  explain: {
+    icon: "📖", title: "Explain Code",
+    description: "Paste code and Nova will break down what it does in simple language.",
+    placeholder: "Paste your code here...",
+    fields: `<div class="tool-field"><label>Level</label><select id="toolLevel"><option>Beginner</option><option>Intermediate</option></select></div>`
+  },
+  fix: {
+    icon: "🛠", title: "Fix Error",
+    description: "Paste the code and error message. Nova will identify the likely cause and suggest a correction.",
+    placeholder: "Paste the code and the exact error message here...",
+    fields: `<div class="tool-field"><label>Goal</label><select id="toolGoal"><option>Find the bug</option><option>Fix the code</option><option>Explain the error</option></select></div>`
+  },
+  website: {
+    icon: "🌐", title: "Website Builder",
+    description: "Turn an idea into a website plan with pages, features, design and starter code.",
+    placeholder: "Example: I want a website for a small clothing business in Ghana.",
+    fields: `<div class="tool-field"><label>Style</label><select id="toolStyle"><option>Modern</option><option>Minimal</option><option>Professional</option><option>Colorful</option></select></div>`
+  },
+  idea: {
+    icon: "💡", title: "Idea Generator",
+    description: "Get practical project ideas matched to your programming level and interests.",
+    placeholder: "Example: Give me ideas for websites I could build and eventually monetize.",
+    fields: `<div class="tool-field"><label>Focus</label><select id="toolFocus"><option>Websites</option><option>Apps</option><option>AI</option><option>Business</option></select></div>`
+  }
 };
 
-document.querySelectorAll(".tool-card").forEach((button) => {
-  button.addEventListener("click", async () => {
-    const tool = button.dataset.tool;
-    const prompt = toolPrompts[tool];
-    if (!prompt || isStreaming) return;
+const toolModal = document.getElementById("toolModal");
+const toolModalIcon = document.getElementById("toolModalIcon");
+const toolModalTitle = document.getElementById("toolModalTitle");
+const toolModalDescription = document.getElementById("toolModalDescription");
+const toolRequest = document.getElementById("toolRequest");
+const toolExtraFields = document.getElementById("toolExtraFields");
+const closeToolModal = document.getElementById("closeToolModal");
+const cancelTool = document.getElementById("cancelTool");
+const runTool = document.getElementById("runTool");
+let activeTool = null;
 
-    const request = prompt + "\n\nMy request: ";
-    input.value = request;
-    input.focus();
-  });
+function openTool(tool) {
+  const config = toolConfigs[tool];
+  if (!config || isStreaming) return;
+  activeTool = tool;
+  toolModalIcon.textContent = config.icon;
+  toolModalTitle.textContent = config.title;
+  toolModalDescription.textContent = config.description;
+  toolRequest.placeholder = config.placeholder;
+  toolRequest.value = "";
+  toolExtraFields.innerHTML = config.fields;
+  toolModal.classList.add("open");
+  toolModal.setAttribute("aria-hidden", "false");
+  setTimeout(() => toolRequest.focus(), 50);
+}
+
+function closeTool() {
+  activeTool = null;
+  toolModal.classList.remove("open");
+  toolModal.setAttribute("aria-hidden", "true");
+}
+
+function buildToolPrompt() {
+  const request = toolRequest.value.trim();
+  if (!request) return "";
+  const values = [...toolExtraFields.querySelectorAll("select")].map(select => `${select.previousElementSibling?.textContent}: ${select.value}`).join("\n");
+  const base = {
+    code: "Act as Nova Code Generator. Create complete beginner-friendly code when practical. Explain the files and how to run them.",
+    explain: "Act as Nova Code Explainer. Explain the supplied code step by step in simple language. Point out important lines and concepts.",
+    fix: "Act as Nova Debugger. Diagnose the supplied code/error, explain the likely cause, then provide corrected code and a simple explanation.",
+    website: "Act as Nova Website Builder. Turn the request into a clear website plan with pages, features, design, and starter HTML/CSS/JavaScript where useful.",
+    idea: "Act as Nova Idea Generator. Suggest practical beginner-friendly project ideas. Explain the problem, main features, and a sensible first build step."
+  }[activeTool];
+  return base + "\n\n" + values + "\n\nUser request:\n" + request;
+}
+
+function runActiveTool() {
+  const prompt = buildToolPrompt();
+  if (!prompt || !activeTool || isStreaming) return;
+  const displayRequest = toolRequest.value.trim();
+  closeTool();
+  addMessage(`${toolConfigs[activeTool]?.icon || "✦"} ${toolConfigs[activeTool]?.title || "AI Tool"}\n${displayRequest}`, "user");
+  requestAIResponse(prompt);
+}
+
+closeToolModal?.addEventListener("click", closeTool);
+cancelTool?.addEventListener("click", closeTool);
+toolModal?.addEventListener("click", (event) => { if (event.target === toolModal) closeTool(); });
+toolRequest?.addEventListener("keydown", (event) => {
+  if ((event.ctrlKey || event.metaKey) && event.key === "Enter") runActiveTool();
+});
+
+document.querySelectorAll(".tool-card").forEach((button) => {
+  button.addEventListener("click", () => openTool(button.dataset.tool));
 });
 
 loadSettings();
