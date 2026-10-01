@@ -14,8 +14,63 @@ const themeSelect = document.getElementById("themeSelect");
 const styleSelect = document.getElementById("styleSelect");
 const memoryToggle = document.getElementById("memoryToggle");
 const historyList = document.getElementById("historyList");
+const projectsBtn = document.getElementById("projectsBtn");
+const projectsPanel = document.getElementById("projectsPanel");
+const closeProjects = document.getElementById("closeProjects");
+const createProjectBtn = document.getElementById("createProjectBtn");
+const projectsList = document.getElementById("projectsList");
+const projectModal = document.getElementById("projectModal");
+const closeProjectModal = document.getElementById("closeProjectModal");
+const cancelProject = document.getElementById("cancelProject");
+const saveProject = document.getElementById("saveProject");
+const projectName = document.getElementById("projectName");
+const projectDescription = document.getElementById("projectDescription");
+
 const historySearch = document.getElementById("historySearch");
 
+
+
+function getProjects() {
+  try {
+    const items = JSON.parse(localStorage.getItem("novaProjects") || "[]");
+    return Array.isArray(items) ? items : [];
+  } catch { return []; }
+}
+function saveProjects(items) { localStorage.setItem("novaProjects", JSON.stringify(items)); }
+function renderProjects() {
+  const items = getProjects();
+  if (!items.length) { projectsList.innerHTML = '<div class="project-empty">No projects yet</div>'; return; }
+  projectsList.innerHTML = "";
+  items.forEach(project => {
+    const row = document.createElement("div"); row.className = "project-row";
+    const open = document.createElement("button"); open.className = "project-open"; open.textContent = project.name; open.title = project.description || project.name;
+    open.addEventListener("click", () => {
+      input.value = "Help me continue my project: " + project.name + ". " + (project.description || "");
+      projectsPanel.classList.remove("open"); projectsBtn.classList.remove("active"); input.focus();
+    });
+    const del = document.createElement("button"); del.className = "project-delete"; del.textContent = "×"; del.title = "Delete project";
+    del.addEventListener("click", () => { saveProjects(getProjects().filter(item => item.id !== project.id)); renderProjects(); });
+    row.append(open, del); projectsList.appendChild(row);
+  });
+}
+function openProjectModal() {
+  projectName.value = ""; projectDescription.value = "";
+  projectModal.classList.add("open"); projectModal.setAttribute("aria-hidden","false"); setTimeout(() => projectName.focus(),50);
+}
+function closeProjectModalFn() { projectModal.classList.remove("open"); projectModal.setAttribute("aria-hidden","true"); }
+function saveCurrentProject() {
+  const name=projectName.value.trim(); if(!name) { projectName.focus(); return; }
+  const items=getProjects(); items.unshift({id:createSessionId(),name:name.slice(0,50),description:projectDescription.value.trim().slice(0,500),createdAt:Date.now()});
+  saveProjects(items.slice(0,30)); renderProjects(); closeProjectModalFn();
+}
+projectsBtn?.addEventListener("click",()=>{ projectsPanel.classList.toggle("open"); settingsPanel?.classList.remove("open"); historyList?.classList.remove("visible"); historyBtn?.classList.remove("active"); projectsBtn.classList.toggle("active"); if(projectsPanel.classList.contains("open")) renderProjects(); });
+closeProjects?.addEventListener("click",()=>projectsPanel.classList.remove("open"));
+createProjectBtn?.addEventListener("click",openProjectModal);
+closeProjectModal?.addEventListener("click",closeProjectModalFn);
+cancelProject?.addEventListener("click",closeProjectModalFn);
+saveProject?.addEventListener("click",saveCurrentProject);
+projectModal?.addEventListener("click",e=>{if(e.target===projectModal)closeProjectModalFn();});
+projectDescription?.addEventListener("keydown",e=>{if((e.ctrlKey||e.metaKey)&&e.key==="Enter")saveCurrentProject();});
 
 function loadSettings() {
   const theme = localStorage.getItem("novaTheme") || "dark";
@@ -816,6 +871,7 @@ document.querySelectorAll(".tool-card").forEach((button) => {
 });
 
 loadSettings();
+renderProjects();
 checkConnection();
 restoreChat();
 input.focus();
