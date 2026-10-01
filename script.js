@@ -7,8 +7,44 @@ const statusText = document.getElementById("statusText");
 const statusDot = document.getElementById("statusDot");
 const historyBtn = document.getElementById("historyBtn");
 const chatBtn = document.getElementById("chatBtn");
+const settingsBtn = document.getElementById("settingsBtn");
+const settingsPanel = document.getElementById("settingsPanel");
+const closeSettings = document.getElementById("closeSettings");
+const themeSelect = document.getElementById("themeSelect");
+const styleSelect = document.getElementById("styleSelect");
+const memoryToggle = document.getElementById("memoryToggle");
 const historyList = document.getElementById("historyList");
 const historySearch = document.getElementById("historySearch");
+
+
+function loadSettings() {
+  const theme = localStorage.getItem("novaTheme") || "dark";
+  const responseStyle = localStorage.getItem("novaResponseStyle") || "balanced";
+  const memory = localStorage.getItem("novaMemory") !== "false";
+
+  document.body.dataset.theme = theme;
+  themeSelect.value = theme;
+  styleSelect.value = responseStyle;
+  memoryToggle.checked = memory;
+}
+
+function saveSettings() {
+  localStorage.setItem("novaTheme", themeSelect.value);
+  localStorage.setItem("novaResponseStyle", styleSelect.value);
+  localStorage.setItem("novaMemory", String(memoryToggle.checked));
+  document.body.dataset.theme = themeSelect.value;
+}
+
+settingsBtn?.addEventListener("click", () => {
+  settingsPanel?.classList.toggle("open");
+  historyList?.classList.remove("visible");
+  historyBtn?.classList.remove("active");
+});
+
+closeSettings?.addEventListener("click", () => settingsPanel?.classList.remove("open"));
+themeSelect?.addEventListener("change", saveSettings);
+styleSelect?.addEventListener("change", saveSettings);
+memoryToggle?.addEventListener("change", saveSettings);
 
 function createSessionId() {
   if (window.crypto?.randomUUID) return crypto.randomUUID();
@@ -46,6 +82,13 @@ rememberSession(sessionId);
 
 // Change this one value when Nova's Python backend is deployed online.
 const API_URL = "http://127.0.0.1:5000";
+
+function getResponseStyleInstruction() {
+  const style = localStorage.getItem("novaResponseStyle") || "balanced";
+  if (style === "concise") return "Keep answers concise and focused.";
+  if (style === "detailed") return "Give detailed explanations with useful examples.";
+  return "Use a balanced level of detail.";
+}
 
 let isStreaming = false;
 let stopStreamingRequested = false;
@@ -228,7 +271,12 @@ async function requestAIResponse(text, isRegenerate = false) {
     const response = await fetch(`${API_URL}/api/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: text, session_id: sessionId })
+      body: JSON.stringify({
+        message: text,
+        session_id: sessionId,
+        response_style: localStorage.getItem("novaResponseStyle") || "balanced",
+        memory_enabled: localStorage.getItem("novaMemory") !== "false"
+      })
     });
 
     if (!response.ok) throw new Error("Backend error");
@@ -602,6 +650,7 @@ document.querySelectorAll(".suggestion").forEach((button) => {
   });
 });
 
+loadSettings();
 checkConnection();
 restoreChat();
 input.focus();
