@@ -50,6 +50,10 @@ function getActiveProject() {
 }
 async function syncProjectsFromServer() {
   try {
+    const localProjects = getProjects();
+    for (const project of localProjects) {
+      await syncProjectToServer(project);
+    }
     const response = await fetch(API_URL + "/api/projects");
     if (!response.ok) return;
     const data = await response.json();
