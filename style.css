@@ -45,7 +45,16 @@ header { height:72px; padding:0 22px; display:flex; align-items:center; justify-
 .welcome h1 { margin-top:20px; font-size:clamp(28px,5vw,42px); } .welcome p { margin:12px auto 25px; max-width:550px; color:var(--muted); line-height:1.6; }
 .suggestions { display:flex; justify-content:center; flex-wrap:wrap; gap:8px; } .suggestion { padding:10px 13px; border:1px solid var(--border); border-radius:20px; background:#101725; cursor:pointer; } .suggestion:hover { border-color:var(--accent); }
 .message { display:flex; gap:12px; margin-bottom:25px; animation:appear .3s ease; } .avatar { width:40px; height:40px; border-radius:50%; background:var(--accent); display:grid; place-items:center; flex-shrink:0; }
-.bubble { max-width:75%; padding:14px 18px; border-radius:15px; background:#151c2b; line-height:1.55; white-space:pre-wrap; } .user { justify-content:flex-end; } .user .avatar { display:none; } .user .bubble { background:var(--accent); }
+.message-content { max-width:75%; min-width:0; }
+.bubble { padding:14px 18px; border-radius:15px; background:#151c2b; line-height:1.55; white-space:pre-wrap; }
+.message-meta { display:flex; gap:10px; align-items:center; margin-top:6px; color:#657087; font-size:10px; }
+.message-action { border:0; background:transparent; color:#7e8aa1; cursor:pointer; padding:2px 4px; }
+.message-action:hover { color:#b7c4ff; }
+.regenerate-row { margin:-12px 0 22px 52px; }
+.regenerate-button { border:1px solid var(--border); border-radius:9px; padding:7px 10px; background:#101725; color:#9da9bd; cursor:pointer; font-size:11px; }
+.regenerate-button:hover { border-color:var(--accent); color:#fff; } .user { justify-content:flex-end; } .user .avatar { display:none; } .user .bubble { background:var(--accent); }
+.user .message-content { text-align:right; }
+.user .message-meta { justify-content:flex-end; }
 .input-area { margin:0 6%; padding:10px; display:flex; gap:10px; border:1px solid #29344b; border-radius:16px; background:#0e1421; }
 input { flex:1; min-width:0; padding:13px; border:0; background:transparent; color:white; outline:none; font-size:16px; }
 #sendBtn { width:48px; height:48px; border:0; border-radius:12px; background:var(--accent); cursor:pointer; } #sendBtn:hover { background:var(--accent-2); }
