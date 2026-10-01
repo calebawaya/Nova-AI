@@ -25,6 +25,8 @@ const cancelProject = document.getElementById("cancelProject");
 const saveProject = document.getElementById("saveProject");
 const projectName = document.getElementById("projectName");
 const projectDescription = document.getElementById("projectDescription");
+const projectModalTitle = document.getElementById("projectModalTitle");
+let activeProjectId = localStorage.getItem("novaActiveProjectId") || null;
 
 const historySearch = document.getElementById("historySearch");
 
@@ -37,31 +39,93 @@ function getProjects() {
   } catch { return []; }
 }
 function saveProjects(items) { localStorage.setItem("novaProjects", JSON.stringify(items)); }
+function setActiveProject(id) {
+  activeProjectId = id || null;
+  if (activeProjectId) localStorage.setItem("novaActiveProjectId", activeProjectId);
+  else localStorage.removeItem("novaActiveProjectId");
+  renderProjects();
+}
+function getActiveProject() {
+  return getProjects().find(item => item.id === activeProjectId) || null;
+}
+async function syncProjectsFromServer() {
+  try {
+    const response = await fetch(API_URL + "/api/projects");
+    if (!response.ok) return;
+    const data = await response.json();
+    if (Array.isArray(data.projects)) {
+      saveProjects(data.projects);
+      if (activeProjectId && !data.projects.some(p => p.id === activeProjectId)) setActiveProject(null);
+      renderProjects();
+    }
+  } catch {}
+}
+async function syncProjectToServer(project) {
+  try {
+    const response = await fetch(API_URL + "/api/projects", {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify(project)
+    });
+    return response.ok;
+  } catch { return false; }
+}
 function renderProjects() {
   const items = getProjects();
   if (!items.length) { projectsList.innerHTML = '<div class="project-empty">No projects yet</div>'; return; }
   projectsList.innerHTML = "";
+  const active = getActiveProject();
+  if (active) {
+    const activeBar = document.createElement("div");
+    activeBar.className = "project-active";
+    activeBar.textContent = "● " + active.name;
+    projectsList.appendChild(activeBar);
+  }
   items.forEach(project => {
     const row = document.createElement("div"); row.className = "project-row";
     const open = document.createElement("button"); open.className = "project-open"; open.textContent = project.name; open.title = project.description || project.name;
-    open.addEventListener("click", () => {
-      input.value = "Help me continue my project: " + project.name + ". " + (project.description || "");
-      projectsPanel.classList.remove("open"); projectsBtn.classList.remove("active"); input.focus();
+    open.addEventListener("click", async () => {
+      setActiveProject(project.id);
+      projectsPanel.classList.remove("open");
+      projectsBtn.classList.remove("active");
+      chatBtn?.classList.add("active");
+      input.value = "Continue working on " + project.name;
+      input.focus();
+      await restoreChat();
     });
     const del = document.createElement("button"); del.className = "project-delete"; del.textContent = "×"; del.title = "Delete project";
-    del.addEventListener("click", () => { saveProjects(getProjects().filter(item => item.id !== project.id)); renderProjects(); });
+    del.addEventListener("click", async () => {
+      try { await fetch(API_URL + "/api/projects/" + encodeURIComponent(project.id), {method:"DELETE"}); } catch {}
+      saveProjects(getProjects().filter(item => item.id !== project.id));
+      if (activeProjectId === project.id) setActiveProject(null);
+      renderProjects();
+    });
     row.append(open, del); projectsList.appendChild(row);
   });
 }
 function openProjectModal() {
-  projectName.value = ""; projectDescription.value = "";
-  projectModal.classList.add("open"); projectModal.setAttribute("aria-hidden","false"); setTimeout(() => projectName.focus(),50);
+  projectName.value = "";
+  projectDescription.value = "";
+  projectModalTitle.textContent = "Create project";
+  projectModal.classList.add("open");
+  projectModal.setAttribute("aria-hidden","false");
+  setTimeout(() => projectName.focus(),50);
 }
 function closeProjectModalFn() { projectModal.classList.remove("open"); projectModal.setAttribute("aria-hidden","true"); }
-function saveCurrentProject() {
-  const name=projectName.value.trim(); if(!name) { projectName.focus(); return; }
-  const items=getProjects(); items.unshift({id:createSessionId(),name:name.slice(0,50),description:projectDescription.value.trim().slice(0,500),createdAt:Date.now()});
-  saveProjects(items.slice(0,30)); renderProjects(); closeProjectModalFn();
+async function saveCurrentProject() {
+  const name = projectName.value.trim();
+  if (!name) { projectName.focus(); return; }
+  const project = {
+    id: createSessionId(),
+    name: name.slice(0,50),
+    description: projectDescription.value.trim().slice(0,500)
+  };
+  await syncProjectToServer(project);
+  const items = getProjects().filter(item => item.id !== project.id);
+  items.unshift({...project, createdAt: Date.now(), updatedAt: Date.now()});
+  saveProjects(items.slice(0,30));
+  setActiveProject(project.id);
+  closeProjectModalFn();
 }
 projectsBtn?.addEventListener("click",()=>{ projectsPanel.classList.toggle("open"); settingsPanel?.classList.remove("open"); historyList?.classList.remove("visible"); historyBtn?.classList.remove("active"); projectsBtn.classList.toggle("active"); if(projectsPanel.classList.contains("open")) renderProjects(); });
 closeProjects?.addEventListener("click",()=>projectsPanel.classList.remove("open"));
@@ -330,7 +394,8 @@ async function requestAIResponse(text, isRegenerate = false) {
         message: text,
         session_id: sessionId,
         response_style: localStorage.getItem("novaResponseStyle") || "balanced",
-        memory_enabled: localStorage.getItem("novaMemory") !== "false"
+        memory_enabled: localStorage.getItem("novaMemory") !== "false",
+        project_id: activeProjectId || null
       })
     });
 
@@ -872,6 +937,7 @@ document.querySelectorAll(".tool-card").forEach((button) => {
 
 loadSettings();
 renderProjects();
+syncProjectsFromServer();
 checkConnection();
 restoreChat();
 input.focus();
