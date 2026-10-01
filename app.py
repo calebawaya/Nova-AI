@@ -2,6 +2,11 @@ import os
 import re
 import sqlite3
 import time
+import base64
+import json
+from urllib.error import HTTPError, URLError
+from urllib.parse import quote
+from urllib.request import Request, urlopen
 from collections import defaultdict, deque
 
 from flask import Flask, request, jsonify
@@ -23,6 +28,49 @@ MAX_MESSAGE_LENGTH = 4000
 RATE_LIMIT_COUNT = 30
 RATE_LIMIT_WINDOW = 60
 request_log = defaultdict(deque)
+
+GITHUB_API = "https://api.github.com"
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", "").strip()
+GITHUB_ALLOWED_REPOS = {
+    item.strip().lower()
+    for item in os.getenv("GITHUB_ALLOWED_REPOS", "calebawaya/Nova-AI").split(",")
+    if item.strip()
+}
+
+def github_allowed(repo_full_name):
+    return bool(
+        GITHUB_TOKEN
+        and re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", repo_full_name or "")
+        and (not GITHUB_ALLOWED_REPOS or repo_full_name.lower() in GITHUB_ALLOWED_REPOS)
+    )
+
+def github_request(method, path, payload=None):
+    if not GITHUB_TOKEN:
+        raise RuntimeError("GitHub is not connected. Set GITHUB_TOKEN in the backend environment.")
+    headers = {
+        "Accept": "application/vnd.github+json",
+        "Authorization": f"Bearer {GITHUB_TOKEN}",
+        "X-GitHub-Api-Version": "2026-03-10",
+        "User-Agent": "Nova-AI",
+    }
+    body = None
+    if payload is not None:
+        body = json.dumps(payload).encode("utf-8")
+        headers["Content-Type"] = "application/json"
+    req = Request(GITHUB_API + path, data=body, headers=headers, method=method)
+    try:
+        with urlopen(req, timeout=20) as response:
+            raw = response.read().decode("utf-8")
+            return response.status, json.loads(raw) if raw else {}
+    except HTTPError as error:
+        raw = error.read().decode("utf-8", errors="replace")
+        try:
+            detail = json.loads(raw).get("message", raw)
+        except Exception:
+            detail = raw
+        raise RuntimeError(f"GitHub API error ({error.code}): {detail}")
+    except URLError as error:
+        raise RuntimeError(f"GitHub connection failed: {error.reason}")
 
 
 def init_db():
@@ -367,6 +415,72 @@ def chat():
         "ai_enabled": client is not None
     })
 
+
+
+@app.get("/api/github/repository")
+def github_repository():
+    repo_full_name = str(request.args.get("repo", "")).strip()
+    if not github_allowed(repo_full_name):
+        return jsonify({"error": "This repository is not available to Nova. Configure GITHUB_TOKEN and GITHUB_ALLOWED_REPOS on the backend."}), 403
+    try:
+        _, data = github_request("GET", f"/repos/{quote(repo_full_name, safe='/')}")
+        return jsonify({"repo": data.get("full_name", repo_full_name), "default_branch": data.get("default_branch", "main"), "private": data.get("private", False)})
+    except RuntimeError as error:
+        return jsonify({"error": str(error)}), 502
+
+@app.get("/api/github/files")
+def github_files():
+    repo_full_name = str(request.args.get("repo", "")).strip()
+    branch = str(request.args.get("branch", "")).strip() or "main"
+    if not github_allowed(repo_full_name):
+        return jsonify({"error": "This repository is not available to Nova."}), 403
+    try:
+        _, data = github_request("GET", f"/repos/{quote(repo_full_name, safe='/')}/git/trees/{quote(branch, safe='')}?recursive=1")
+        files = [{"path": item["path"], "type": "file", "sha": item.get("sha")} for item in data.get("tree", []) if item.get("type") == "blob"]
+        return jsonify({"repo": repo_full_name, "branch": branch, "files": files})
+    except RuntimeError as error:
+        return jsonify({"error": str(error)}), 502
+
+@app.get("/api/github/file")
+def github_file():
+    repo_full_name = str(request.args.get("repo", "")).strip()
+    path = str(request.args.get("path", "")).strip().lstrip("/")
+    branch = str(request.args.get("branch", "")).strip() or "main"
+    if not path:
+        return jsonify({"error": "File path is required."}), 400
+    if not github_allowed(repo_full_name):
+        return jsonify({"error": "This repository is not available to Nova."}), 403
+    try:
+        _, data = github_request("GET", f"/repos/{quote(repo_full_name, safe='/')}/contents/{quote(path, safe='/')}?ref={quote(branch, safe='')}")
+        encoded = data.get("content", "").replace("\n", "")
+        content = base64.b64decode(encoded).decode("utf-8", errors="replace")
+        return jsonify({"path": path, "sha": data.get("sha"), "content": content})
+    except (RuntimeError, ValueError) as error:
+        return jsonify({"error": str(error)}), 502
+
+@app.put("/api/github/file")
+def update_github_file():
+    data = request.get_json(silent=True) or {}
+    repo_full_name = str(data.get("repo", "")).strip()
+    path = str(data.get("path", "")).strip().lstrip("/")
+    branch = str(data.get("branch", "")).strip() or "main"
+    content = str(data.get("content", ""))
+    sha = str(data.get("sha", "")).strip() or None
+    message = str(data.get("message", "")).strip() or f"Update {path} from Nova AI"
+    if not path:
+        return jsonify({"error": "File path is required."}), 400
+    if len(content) > 1000000:
+        return jsonify({"error": "File is too large for this workspace editor."}), 400
+    if not github_allowed(repo_full_name):
+        return jsonify({"error": "This repository is not available to Nova."}), 403
+    payload = {"message": message[:120], "content": base64.b64encode(content.encode("utf-8")).decode("ascii"), "branch": branch}
+    if sha:
+        payload["sha"] = sha
+    try:
+        _, result = github_request("PUT", f"/repos/{quote(repo_full_name, safe='/')}/contents/{quote(path, safe='/')}", payload)
+        return jsonify({"success": True, "sha": result.get("content", {}).get("sha"), "commit_sha": result.get("commit", {}).get("sha")})
+    except RuntimeError as error:
+        return jsonify({"error": str(error)}), 502
 
 @app.get("/api/projects")
 def projects():
