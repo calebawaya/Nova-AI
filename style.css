@@ -170,3 +170,23 @@ body[data-theme="light"] .project-input { background:#f7f9fc; color:#162033; }
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+
+.workspace-view{position:fixed;inset:0;z-index:90;background:var(--bg);display:none;flex-direction:column;padding:24px;overflow:auto}
+.workspace-view.open{display:flex}
+.workspace-header{display:flex;align-items:center;gap:20px;max-width:1180px;width:100%;margin:0 auto 20px}
+.workspace-back,.workspace-actions button,.small-action,.progress-controls button,.build-tools button,.editor-top button{border:1px solid var(--border);border-radius:9px;background:#11182a;color:var(--text);padding:9px 12px;cursor:pointer}
+.workspace-back:hover,.workspace-actions button:hover,.small-action:hover,.progress-controls button:hover,.build-tools button:hover,.editor-top button:hover{border-color:var(--accent)}
+.workspace-title-wrap{flex:1;min-width:0}.workspace-kicker{font-size:9px;letter-spacing:1.5px;color:var(--accent-2);font-weight:700}.workspace-title-wrap h1{font-size:25px;margin:3px 0}.workspace-title-wrap p{color:var(--muted);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.workspace-actions{display:flex;gap:7px}.workspace-actions button:last-child{font-size:20px;width:38px}
+.workspace-grid{width:100%;max-width:1180px;margin:auto;display:grid;grid-template-columns:310px 1fr;gap:14px}
+.workspace-card{border:1px solid var(--border);border-radius:16px;background:#0b111d;padding:16px;min-width:0}.overview-card{grid-column:1}.files-card{grid-column:2;grid-row:1 / span 2}.build-card{grid-column:1}.project-chat-card{grid-column:1 / -1;min-height:290px}
+.card-heading{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;font-size:13px}.workspace-online{font-size:10px;color:#71e1a4}
+.progress-track{height:10px;background:#171f31;border-radius:20px;overflow:hidden}.progress-bar{height:100%;width:0;background:linear-gradient(90deg,var(--accent),var(--accent-2));transition:width .25s}
+.progress-controls{display:flex;gap:5px;margin:11px 0 18px}.progress-controls button{padding:6px 8px;font-size:10px}.workspace-label{display:block;color:var(--muted);font-size:10px;margin-bottom:6px}.workspace-select{width:100%;padding:9px;border:1px solid var(--border);border-radius:9px;background:#11182a;color:var(--text)}
+.workspace-file-layout{display:grid;grid-template-columns:145px 1fr;gap:10px;height:390px}.workspace-files{overflow:auto;border-right:1px solid var(--border);padding-right:8px}.file-item{width:100%;display:block;text-align:left;padding:9px;border:1px solid transparent;border-radius:8px;background:transparent;color:#aeb8ca;cursor:pointer;font-size:11px;margin-bottom:4px}.file-item:hover,.file-item.active{background:#17213a;color:#fff;border-color:#33466f}.file-empty{color:#68748a;font-size:11px;padding:10px}
+.code-editor-wrap{min-width:0;display:flex;flex-direction:column}.editor-top{display:flex;justify-content:space-between;align-items:center;padding-bottom:8px;color:#9da9bd;font-size:10px}.editor-top button{padding:6px 8px;font-size:10px}.code-editor{flex:1;resize:none;width:100%;box-sizing:border-box;border:1px solid var(--border);border-radius:10px;background:#050912;color:#dce5f7;padding:13px;font:12px/1.55 Consolas,monospace;outline:none}.code-editor:focus{border-color:var(--accent)}
+.build-tools{display:grid;grid-template-columns:1fr 1fr;gap:7px}.build-tools button{text-align:left;font-size:10px}.workspace-chat{height:180px;overflow:auto;padding:4px 2px 10px}.workspace-msg{padding:9px 11px;border-radius:10px;background:#151c2b;margin-bottom:7px;white-space:pre-wrap;font-size:11px;line-height:1.45;max-width:85%}.workspace-msg.user{margin-left:auto;background:var(--accent)}.workspace-chat-input{display:flex;gap:7px;border:1px solid var(--border);border-radius:11px;padding:5px;background:#0e1421}.workspace-chat-input input{font-size:12px;padding:8px}.workspace-chat-input button{width:40px;border:0;border-radius:8px;background:var(--accent);cursor:pointer}
+body[data-theme="light"] .workspace-view{background:#eef3fb}body[data-theme="light"] .workspace-card{background:#fff}body[data-theme="light"] .code-editor{background:#f7f9fc;color:#162033}
+@media(max-width:900px){.workspace-grid{grid-template-columns:1fr}.overview-card,.files-card,.build-card,.project-chat-card{grid-column:1;grid-row:auto}.workspace-file-layout{height:340px}}
+@media(max-width:600px){.workspace-view{padding:12px}.workspace-header{gap:8px}.workspace-title-wrap h1{font-size:19px}.workspace-file-layout{grid-template-columns:105px 1fr}.workspace-actions button:first-child{display:none}}
