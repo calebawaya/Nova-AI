@@ -1,0 +1,163 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  min-height: 100vh;
+  background: #05070d;
+  color: white;
+  font-family: Arial, sans-serif;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.app {
+  width: 95%;
+  max-width: 850px;
+  height: 90vh;
+  background: #0b0f19;
+  border: 1px solid #20283a;
+  border-radius: 20px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 0 50px rgba(50, 100, 255, 0.15);
+}
+
+header {
+  height: 70px;
+  padding: 0 25px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #20283a;
+  background: #0d1220;
+}
+
+.logo {
+  font-size: 22px;
+  font-weight: bold;
+}
+
+.logo span {
+  color: #5c7cff;
+  font-size: 28px;
+}
+
+.status {
+  color: #4ade80;
+  font-size: 14px;
+}
+
+#chat {
+  flex: 1;
+  padding: 30px;
+  overflow-y: auto;
+}
+
+.message {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 25px;
+  animation: appear 0.3s ease;
+}
+
+.avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #526dff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.bubble {
+  max-width: 75%;
+  padding: 14px 18px;
+  border-radius: 15px;
+  background: #151c2b;
+  line-height: 1.5;
+}
+
+.user {
+  justify-content: flex-end;
+}
+
+.user .avatar {
+  display: none;
+}
+
+.user .bubble {
+  background: #526dff;
+}
+
+.input-area {
+  padding: 20px;
+  display: flex;
+  gap: 10px;
+  border-top: 1px solid #20283a;
+}
+
+input {
+  flex: 1;
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid #29344b;
+  background: #101624;
+  color: white;
+  outline: none;
+  font-size: 16px;
+}
+
+input:focus {
+  border-color: #526dff;
+}
+
+button {
+  width: 55px;
+  border: none;
+  border-radius: 12px;
+  background: #526dff;
+  color: white;
+  font-size: 22px;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+button:hover {
+  transform: scale(1.05);
+  background: #6c83ff;
+}
+
+@keyframes appear {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 600px) {
+  .app {
+    width: 100%;
+    height: 100vh;
+    border-radius: 0;
+  }
+
+  #chat {
+    padding: 20px;
+  }
+
+  .bubble {
+    max-width: 85%;
+  }
+}
