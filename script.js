@@ -381,9 +381,68 @@ function resetChatScreen() {
   `;
 }
 
+function showCommandHelp() {
+  clearWelcome();
+  addMessage(
+    "Nova commands:\n\n/help — show this command list\n/clear — clear the current conversation\n/code <request> — ask Nova for code\n/summarize — summarize the current conversation",
+    "ai"
+  );
+}
+
+async function handleCommand(text) {
+  const commandLine = text.trim();
+  const lower = commandLine.toLowerCase();
+
+  if (lower === "/help") {
+    showCommandHelp();
+    return true;
+  }
+
+  if (lower === "/clear") {
+    await deleteCurrentSession();
+    resetChatScreen();
+
+    const sessions = getSavedSessions().filter(item => item.id !== sessionId);
+    saveSessionList(sessions);
+    await loadHistory();
+    return true;
+  }
+
+  if (lower.startsWith("/code")) {
+    const request = commandLine.slice(5).trim();
+    if (!request) {
+      addMessage("Usage: /code <what you want to build>", "ai");
+      return true;
+    }
+
+    addMessage(commandLine, "user");
+    await requestAIResponse(
+      "Act as a coding assistant. Give me beginner-friendly code for this request, explain where to put the code, and include the complete code when practical:\n\n" + request
+    );
+    return true;
+  }
+
+  if (lower === "/summarize") {
+    addMessage(commandLine, "user");
+    await requestAIResponse(
+      "Summarize our current conversation. Give me the main goal, important decisions, current project or task, and useful next steps. If there is not enough conversation to summarize, say so clearly."
+    );
+    return true;
+  }
+
+  return false;
+}
+
 async function sendMessage() {
   const text = input.value.trim();
   if (!text || isStreaming) return;
+
+  if (text.startsWith("/")) {
+    input.value = "";
+    await handleCommand(text);
+    input.focus();
+    return;
+  }
 
   addMessage(text, "user");
   input.value = "";
@@ -395,7 +454,12 @@ async function sendMessage() {
     const response = await fetch(`${API_URL}/api/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: text, session_id: sessionId })
+      body: JSON.stringify({
+        message: text,
+        session_id: sessionId,
+        response_style: localStorage.getItem("novaResponseStyle") || "balanced",
+        memory_enabled: localStorage.getItem("novaMemory") !== "false"
+      })
     });
 
     if (!response.ok) throw new Error("Backend error");
