@@ -15,6 +15,26 @@ function addMessage(text, type) {
   chat.scrollTop = chat.scrollHeight;
 }
 
+function showThinking() {
+  const message = document.createElement("div");
+  message.className = "message ai";
+  message.id = "thinking";
+
+  message.innerHTML = `
+    <div class="avatar">✦</div>
+    <div class="bubble thinking">
+      <span></span><span></span><span></span>
+    </div>
+  `;
+
+  chat.appendChild(message);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function removeThinking() {
+  document.getElementById("thinking")?.remove();
+}
+
 function getAIResponse(question) {
   const q = question.toLowerCase();
 
@@ -27,26 +47,30 @@ function getAIResponse(question) {
   }
 
   if (q.includes("who are you")) {
-    return "I'm Nova AI — your little personal AI assistant.";
+    return "I'm Nova AI — your personal AI assistant. ✦";
   }
 
   if (q.includes("html")) {
-    return "HTML is used to create the structure of websites. 🌐";
+    return "HTML creates the structure of a website. 🌐";
   }
 
   if (q.includes("css")) {
-    return "CSS makes websites look beautiful — colors, layouts, animations and more. 🎨";
+    return "CSS controls the design, layout, colors and animations of websites. 🎨";
   }
 
-  if (q.includes("javascript")) {
+  if (q.includes("javascript") || q.includes("js")) {
     return "JavaScript makes websites interactive and powerful. ⚡";
   }
 
   if (q.includes("business")) {
-    return "A good business starts with a problem people need solved. 💡";
+    return "A good business starts by solving a real problem for people. 💡";
   }
 
-  return "Interesting! 🤔 I'm still learning. Try asking me about HTML, CSS, JavaScript, business, or myself.";
+  if (q.includes("help")) {
+    return "I can talk about HTML, CSS, JavaScript, business ideas, and programming. Try asking me something! 🚀";
+  }
+
+  return "Interesting! 🤔 I'm still learning. Ask me about HTML, CSS, JavaScript, business, programming, or myself.";
 }
 
 function sendMessage() {
@@ -56,17 +80,21 @@ function sendMessage() {
 
   addMessage(text, "user");
   input.value = "";
+  sendBtn.disabled = true;
+  showThinking();
 
   setTimeout(() => {
-    const response = getAIResponse(text);
-    addMessage(response, "ai");
-  }, 500);
+    removeThinking();
+    addMessage(getAIResponse(text), "ai");
+    sendBtn.disabled = false;
+    input.focus();
+  }, 700);
 }
 
 sendBtn.addEventListener("click", sendMessage);
 
 input.addEventListener("keydown", (event) => {
-  if (event.key === "Enter") {
-    sendMessage();
-  }
+  if (event.key === "Enter") sendMessage();
 });
+
+input.focus();
