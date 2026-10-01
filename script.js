@@ -208,6 +208,26 @@ async function loadHistory() {
   }
 }
 
+async function restoreChat() {
+  try {
+    const response = await fetch(`${API_URL}/api/history/${encodeURIComponent(sessionId)}`);
+    if (!response.ok) throw new Error("Conversation unavailable");
+
+    const data = await response.json();
+    if (!data.messages?.length) return;
+
+    resetChatScreen();
+
+    data.messages.forEach((item) => {
+      if (item.role === "user" || item.role === "assistant") {
+        addMessage(item.message, item.role === "user" ? "user" : "ai");
+      }
+    });
+  } catch {
+    // Keep the welcome screen when the backend is unavailable.
+  }
+}
+
 async function deleteCurrentSession() {
   try {
     await fetch(`${API_URL}/api/history/${encodeURIComponent(sessionId)}`, {
@@ -254,4 +274,5 @@ document.querySelectorAll(".suggestion").forEach((button) => {
 });
 
 checkConnection();
+restoreChat();
 input.focus();
