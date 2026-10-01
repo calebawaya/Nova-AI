@@ -23,6 +23,13 @@ button,input { font:inherit; } button { color:inherit; }
 .history-item.current-chat { background:#151f38; border-color:#34466f; color:#f5f7ff; box-shadow:inset 3px 0 0 var(--accent); }
 .history-delete { width:28px; height:28px; flex-shrink:0; border:1px solid transparent; border-radius:8px; background:transparent; color:#6f7b92; cursor:pointer; }
 .history-delete:hover { background:#24151b; color:#ff7d91; border-color:#4a2630; }
+.history-menu { width:28px; height:28px; flex-shrink:0; border:1px solid transparent; border-radius:8px; background:transparent; color:#6f7b92; cursor:pointer; }
+.history-menu:hover { background:#17213a; color:#fff; }
+.history-menu-panel { display:none; position:absolute; right:4px; top:31px; z-index:20; width:120px; padding:5px; border:1px solid #303b58; border-radius:10px; background:#0d1320; box-shadow:0 12px 30px rgba(0,0,0,.35); }
+.history-menu-panel.open { display:block; }
+.history-menu-panel button { display:block; width:100%; padding:8px; border:0; border-radius:7px; background:transparent; color:#c8d0df; text-align:left; cursor:pointer; font-size:12px; }
+.history-menu-panel button:hover { background:#17213a; }
+.history-row { position:relative; }
 .history-empty { padding:10px; color:#68748a; font-size:12px; text-align:center; }
 .sidebar-bottom { margin-top:auto; }
 .ai-card { display:flex; gap:10px; align-items:center; padding:12px; border:1px solid var(--border); border-radius:13px; background:#0d1320; }
