@@ -17,11 +17,18 @@
         <p class="side-title">Workspace</p>
         <button class="side-item active" id="chatBtn">💬 Chat</button>
         <button class="side-item" id="historyBtn">🕘 History</button>
+        <button class="side-item" id="projectsBtn">📁 Projects</button>
         <button class="side-item" id="settingsBtn">⚙ Settings</button>
       </div>
 
       <div class="history-tools"><input id="historySearch" class="history-search" type="search" placeholder="Search chats..." autocomplete="off"></div>
       <div id="historyList" class="history-list"></div>
+
+      <div id="projectsPanel" class="projects-panel">
+        <div class="projects-head"><strong>Nova Projects</strong><button id="closeProjects" type="button">×</button></div>
+        <button id="createProjectBtn" class="create-project-btn">＋ New project</button>
+        <div id="projectsList" class="projects-list"></div>
+      </div>
 
       <div id="settingsPanel" class="settings-panel">
         <div class="settings-head">
@@ -94,7 +101,19 @@
         </div>
       </main>
 
-      <div id="toolModal" class="tool-modal" aria-hidden="true">
+      <div id="projectModal" class="project-modal" aria-hidden="true">
+      <div class="project-modal-card">
+        <div class="project-modal-head"><strong id="projectModalTitle">Create project</strong><button id="closeProjectModal" type="button">×</button></div>
+        <p class="project-modal-description">Save an idea you are working on so Nova can keep your project organized.</p>
+        <label class="tool-label" for="projectName">Project name</label>
+        <input id="projectName" class="project-input" maxlength="50" placeholder="My website project">
+        <label class="tool-label" for="projectDescription">Description</label>
+        <textarea id="projectDescription" class="project-input project-textarea" rows="5" maxlength="500" placeholder="What are you building?"></textarea>
+        <div class="project-modal-actions"><button id="cancelProject" class="tool-cancel" type="button">Cancel</button><button id="saveProject" class="tool-run" type="button">Save project</button></div>
+      </div>
+    </div>
+
+    <div id="toolModal" class="tool-modal" aria-hidden="true">
       <div class="tool-modal-card">
         <div class="tool-modal-head">
           <div>
