@@ -403,7 +403,11 @@ def chat():
         reply = ai_response(message, session_id, response_style, memory_enabled, project_id)
     except Exception as error:
         app.logger.exception("AI request failed")
-        reply = fallback_response(message)
+        return jsonify({
+            "error": "Nova could not get a response from the AI provider. Check the backend API key, model setting, and provider logs.",
+            "details": str(error)[:300],
+            "ai_enabled": client is not None
+        }), 502
 
     save_message(session_id, "assistant", reply)
     if memory_enabled:
