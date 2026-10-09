@@ -531,18 +531,19 @@ async function requestAIResponse(text, isRegenerate = false) {
       })
     });
 
-    if (!response.ok) throw new Error("Backend error");
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data.error || data.details || `Backend request failed (${response.status})`);
+    }
+    if (!data.reply) throw new Error(data.error || "The backend returned an empty reply.");
 
-    const data = await response.json();
     removeThinking();
-
     await streamText(data.reply);
     if (!stopStreamingRequested) addRegenerateButton(text);
     return true;
-  } catch {
+  } catch (error) {
     removeThinking();
-    await streamText(getAIResponse(text) + " Python backend is offline, so Nova used its browser backup.");
-    if (!stopStreamingRequested) addRegenerateButton(text);
+    await streamText(`Nova could not answer: ${error.message || "backend connection failed"}. Check the backend/API settings and try again.`);
     return false;
   } finally {
     stopStreamingRequested = false;
@@ -714,9 +715,12 @@ async function sendMessage() {
       })
     });
 
-    if (!response.ok) throw new Error("Backend error");
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data.error || data.details || `Backend request failed (${response.status})`);
+    }
+    if (!data.reply) throw new Error(data.error || "The backend returned an empty reply.");
 
-    const data = await response.json();
     rememberSession(sessionId, data.title || createConversationTitle(text));
     removeThinking();
 
@@ -725,11 +729,7 @@ async function sendMessage() {
     await loadHistory();
   } catch (error) {
     removeThinking();
-    await streamText(
-      getAIResponse(text) +
-      " Python backend is offline, so Nova used its browser backup."
-    );
-    if (!stopStreamingRequested) addRegenerateButton(text);
+    await streamText(`Nova could not answer: ${error.message || "backend connection failed"}. Check the backend/API settings and try again.`);
   } finally {
     stopStreamingRequested = false;
     setStreamingUI(false);
