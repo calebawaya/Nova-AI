@@ -332,7 +332,7 @@ if (!sessionId) {
 rememberSession(sessionId);
 
 // Change this one value when Nova's Python backend is deployed online.
-const API_URL = "http://127.0.0.1:5000";
+const API_URL = window.NOVA_API_BASE || ((location.hostname === "localhost" || location.hostname === "127.0.0.1") ? "http://127.0.0.1:5000" : "https://nova-ai-backend-007y.onrender.com");
 
 function getResponseStyleInstruction() {
   const style = localStorage.getItem("novaResponseStyle") || "balanced";
