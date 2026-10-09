@@ -19,6 +19,16 @@ load_dotenv()
 app = Flask(__name__)
 CORS(app)
 
+
+@app.get("/")
+def index():
+    return jsonify({
+        "name": "Nova AI Backend",
+        "status": "online",
+        "health": "/api/health",
+        "chat": "/api/chat"
+    })
+
 DB_NAME = "nova.db"
 OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 client = OpenAI() if os.getenv("OPENAI_API_KEY") else None
