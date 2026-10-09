@@ -20,7 +20,7 @@ app = Flask(__name__)
 CORS(app)
 
 DB_NAME = "nova.db"
-OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-5.6-luna")
+OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 client = OpenAI() if os.getenv("OPENAI_API_KEY") else None
 
 SESSION_PATTERN = re.compile(r"^[A-Za-z0-9_-]{10,100}$")
@@ -289,7 +289,7 @@ def fallback_response(message):
 
 def ai_response(message, session_id, response_style="balanced", memory_enabled=True, project_id=None):
     if not client:
-        return fallback_response(message)
+        raise RuntimeError("OpenAI API key is not configured. Add OPENAI_API_KEY to the Render service environment.")
 
     history = get_history(session_id)
     memory = get_session_memory(session_id) if memory_enabled else ""
